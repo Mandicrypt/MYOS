@@ -1,0 +1,190 @@
+@import 'tailwindcss';
+
+/*
+  MYOS design tokens. Components use these names, never raw hex values.
+  Light is the default. Dark applies when the user picks it, or picks
+  "Match device" on a device set to dark.
+*/
+:root {
+  --bg: #ededea;
+  --surface: #f7f7f4;
+  --ink: #171a1f;
+  --muted: #5f636d;
+  --faint: #8f939b;
+  --line: #deded9;
+  --line-strong: #cfcfc9;
+  --control: #b9bbbf;
+  --hover: rgb(23 26 31 / 0.045);
+  --accent: #6b8afd;
+  --accent-ink: #3f5bd9;
+  --accent-soft: #e4e8f6;
+  --primary: #3f5bd9;
+  --primary-hover: #3550c8;
+  --on-primary: #ffffff;
+  --calm-green: #3f8a68;
+  --on-green: #ffffff;
+  --soft-red: #b4534a;
+  --overlay: rgb(23 26 31 / 0.22);
+  --toast: #171a1f;
+  --toast-ink: #ffffff;
+  --toast-action: #b9c7ff;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #17181b;
+  --surface: #1f2024;
+  --ink: #e8e8e5;
+  --muted: #a0a3aa;
+  --faint: #6f737b;
+  --line: #2c2e33;
+  --line-strong: #3a3d44;
+  --control: #575b63;
+  --hover: rgb(255 255 255 / 0.055);
+  --accent: #7d95fd;
+  --accent-ink: #a8b7ff;
+  --accent-soft: #23283b;
+  --primary: #5068df;
+  --primary-hover: #5d75ea;
+  --on-primary: #ffffff;
+  --calm-green: #5aae88;
+  --on-green: #17181b;
+  --soft-red: #e3897f;
+  --overlay: rgb(0 0 0 / 0.55);
+  --toast: #e8e8e5;
+  --toast-ink: #17181b;
+  --toast-action: #3f5bd9;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] {
+    --bg: #17181b;
+    --surface: #1f2024;
+    --ink: #e8e8e5;
+    --muted: #a0a3aa;
+    --faint: #6f737b;
+    --line: #2c2e33;
+    --line-strong: #3a3d44;
+    --control: #575b63;
+    --hover: rgb(255 255 255 / 0.055);
+    --accent: #7d95fd;
+    --accent-ink: #a8b7ff;
+    --accent-soft: #23283b;
+    --primary: #5068df;
+    --primary-hover: #5d75ea;
+    --on-primary: #ffffff;
+    --calm-green: #5aae88;
+    --on-green: #17181b;
+    --soft-red: #e3897f;
+    --overlay: rgb(0 0 0 / 0.55);
+    --toast: #e8e8e5;
+    --toast-ink: #17181b;
+    --toast-action: #3f5bd9;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-control: var(--control);
+  --color-hover: var(--hover);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-on-green: var(--on-green);
+  --color-overlay: var(--overlay);
+  --color-toast: var(--toast);
+  --color-toast-ink: var(--toast-ink);
+  --color-toast-action: var(--toast-action);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-calm-green: var(--calm-green);
+  --color-soft-red: var(--soft-red);
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Type scale: 13 · 15 · 17 · 22 · 28 · 36 */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-md: 1.0625rem;
+  --text-md--line-height: 1.625rem;
+  --text-lg: 1.375rem;
+  --text-lg--line-height: 1.875rem;
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 2.25rem;
+  --text-2xl: 2.25rem;
+  --text-2xl--line-height: 2.75rem;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--bg);
+  }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-feature-settings: 'cv11', 'ss03';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.appear {
+  animation: appear 220ms ease-out both;
+}
+.fade {
+  animation: fade 160ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
