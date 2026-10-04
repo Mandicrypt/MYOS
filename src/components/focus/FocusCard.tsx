@@ -1,11 +1,13 @@
 import type { RankedTask } from '@/engine/types'
 import { Button } from '@/components/ui/Button'
+import { useTaskActions } from '@/components/tasks/useTaskActions'
 import { projectFor } from '@/store/selectors'
 import { useStore } from '@/store/store'
 
 /** The one thing that matters now. The visually dominant element on Home. */
 export function FocusCard({ ranked, onStart }: { ranked: RankedTask; onStart: () => void }) {
   const { state } = useStore()
+  const { skip } = useTaskActions('home')
   const { task, reasons } = ranked
   const project = projectFor(state, task)
   const started = task.checklist.some((c) => c.done)
@@ -28,6 +30,9 @@ export function FocusCard({ ranked, onStart }: { ranked: RankedTask; onStart: ()
             {doneSteps} of {task.checklist.length} steps done
           </span>
         ) : null}
+        <Button variant="quiet" onClick={() => skip(task.id, 'tomorrow')} className="sm:ml-auto max-sm:-ml-3.5">
+          Not today
+        </Button>
       </div>
     </section>
   )

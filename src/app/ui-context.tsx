@@ -6,6 +6,9 @@ export type QuickAddKind = 'task' | 'idea' | 'note' | 'project' | 'goal'
 type UiValue = {
   editingTaskId: ID | null
   editTask: (id: ID | null) => void
+  /** Task whose "waiting for" question is open. */
+  waitingTaskId: ID | null
+  askWaiting: (id: ID | null) => void
   quickAdd: { open: boolean; kind: QuickAddKind }
   openQuickAdd: (kind?: QuickAddKind) => void
   closeQuickAdd: () => void
@@ -15,6 +18,7 @@ const UiContext = createContext<UiValue | null>(null)
 
 export function UiProvider({ children }: { children: ReactNode }) {
   const [editingTaskId, editTask] = useState<ID | null>(null)
+  const [waitingTaskId, askWaiting] = useState<ID | null>(null)
   const [quickAdd, setQuickAdd] = useState<UiValue['quickAdd']>({ open: false, kind: 'task' })
 
   const openQuickAdd = useCallback((kind: QuickAddKind = 'task') => setQuickAdd({ open: true, kind }), [])
@@ -33,7 +37,9 @@ export function UiProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <UiContext.Provider value={{ editingTaskId, editTask, quickAdd, openQuickAdd, closeQuickAdd }}>
+    <UiContext.Provider
+      value={{ editingTaskId, editTask, waitingTaskId, askWaiting, quickAdd, openQuickAdd, closeQuickAdd }}
+    >
       {children}
     </UiContext.Provider>
   )

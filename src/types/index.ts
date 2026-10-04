@@ -30,6 +30,9 @@ export type TaskLink = { label: string; url: string }
 
 export type TaskStatus = 'open' | 'done'
 
+/** How a task came to exist. Lets future scoring spot split or bulk-created work. */
+export type TaskOrigin = 'user' | 'inbox' | 'sample'
+
 export type Task = {
   id: ID
   title: string
@@ -53,6 +56,13 @@ export type Task = {
   noteIds: ID[]
   /** What finishing this task produces. */
   outcome?: string
+  /** The user asked MYOS not to suggest this. It stays in Tasks. */
+  suppressed: boolean
+  /** How many times it was pushed to a later day. */
+  postponeCount: number
+  origin: TaskOrigin
+  /** If this task was split out of a bigger one. Reserved for anti-gaming later. */
+  parentId: ID | null
   createdAt: ISODateTime
   completedAt: ISODateTime | null
 }
@@ -97,6 +107,16 @@ export type Note = {
   updatedAt: ISODateTime
 }
 
+/** How a work value was reached. Stored so scoring can be audited and re-run later. */
+export type WorkBreakdown = {
+  base: number
+  alignment: number
+  importance: number
+  effort: number
+  unblocking: number
+  repetition: number
+}
+
 /**
  * Foundation for the future Meaningful Work Score.
  * One event per completed task, scored by how much it mattered, not by count.
@@ -106,6 +126,48 @@ export type WorkEvent = {
   taskId: ID
   points: number
   at: ISODateTime
+  /** Missing on events recorded before scoring v2. */
+  breakdown?: WorkBreakdown
+  projectId?: ID | null
+  goalId?: ID | null
+  scoringVersion?: number
+}
+
+/** Where in the app a user action happened. */
+export type ActionSource = 'home' | 'focus' | 'list' | 'menu' | 'editor' | 'review' | 'inbox' | 'quick-add'
+
+export type UserEventType =
+  | 'task.created'
+  | 'task.completed'
+  | 'task.reopened'
+  | 'task.planned'
+  | 'task.postponed'
+  | 'task.skipped'
+  | 'task.importance_changed'
+  | 'task.deadline_changed'
+  | 'task.waiting_set'
+  | 'task.waiting_cleared'
+  | 'task.suppressed'
+  | 'task.unsuppressed'
+  | 'task.dependency_added'
+  | 'task.dependency_removed'
+  | 'task.unblocked'
+  | 'task.deleted'
+
+/**
+ * One thing the user did, or one thing that happened to a task.
+ * This is the raw material for personalisation later. No learning happens yet.
+ */
+export type UserEvent = {
+  id: ID
+  type: UserEventType
+  taskId: ID
+  at: ISODateTime
+  source?: ActionSource
+  /** True if MYOS was suggesting this task as the main focus at the time. */
+  wasSuggested?: boolean
+  /** Small, type-specific details (old/new values, days late, and so on). */
+  data?: Record<string, string | number | boolean | null>
 }
 
 export type ThemeChoice = 'light' | 'dark' | 'system'
@@ -125,5 +187,6 @@ export type AppState = {
   inbox: InboxItem[]
   notes: Note[]
   workEvents: WorkEvent[]
+  events: UserEvent[]
   settings: Settings
 }

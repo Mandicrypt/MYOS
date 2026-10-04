@@ -1,4 +1,6 @@
-import { engine, isBlocked } from '@/engine/importance'
+import { engine } from '@/engine/importance'
+import { isForToday, suggestable } from '@/engine/next'
+import { isBlocked } from '@/engine/relations'
 import type { EngineContext, RankedTask } from '@/engine/types'
 import { addDays, daysBetween } from '@/lib/dates'
 import type { AppState, Goal, ID, ISODate, Project, Task } from '@/types'
@@ -11,12 +13,7 @@ export function rankOpen(state: AppState, today: ISODate): RankedTask[] {
   )
 }
 
-/** Planned for today, or overdue / rolled over from earlier days. */
-export function isForToday(task: Task, today: ISODate): boolean {
-  if (task.status !== 'open') return false
-  if (task.plannedFor && task.plannedFor <= today) return true
-  return Boolean(task.dueOn && task.dueOn <= today)
-}
+export { isForToday }
 
 export type HomeView = {
   focus: RankedTask | null
@@ -27,8 +24,7 @@ export type HomeView = {
 const HOME_LIST_LIMIT = 4
 
 export function selectHome(state: AppState, today: ISODate): HomeView {
-  const ranked = rankOpen(state, today).filter((r) => !r.blocked)
-  const todays = ranked.filter((r) => isForToday(r.task, today))
+  const todays = suggestable(state, today).filter((r) => isForToday(r.task, today))
   const focus = todays[0] ?? null
   const rest = todays.slice(1)
   return { focus, today: rest.slice(0, HOME_LIST_LIMIT), moreToday: Math.max(0, rest.length - HOME_LIST_LIMIT) }
@@ -38,7 +34,7 @@ export function selectHome(state: AppState, today: ISODate): HomeView {
 export function selectFocusTask(state: AppState, today: ISODate): Task | null {
   const home = selectHome(state, today)
   if (home.focus) return home.focus.task
-  return rankOpen(state, today).find((r) => !r.blocked)?.task ?? null
+  return suggestable(state, today)[0]?.task ?? null
 }
 
 export type TaskGroups = {
@@ -82,27 +78,26 @@ export function waitingReason(state: AppState, task: Task): string | null {
 }
 
 export function nextTaskForProject(state: AppState, projectId: ID, today: ISODate): Task | null {
-  return rankOpen(state, today).find((r) => !r.blocked && r.task.projectId === projectId)?.task ?? null
+  return suggestable(state, today).find((r) => r.task.projectId === projectId)?.task ?? null
 }
 
 export function nextTaskForGoal(state: AppState, goalId: ID, today: ISODate): Task | null {
   const projectIds = state.projects.filter((p) => p.goalId === goalId).map((p) => p.id)
   return (
-    rankOpen(state, today).find(
-      (r) => !r.blocked && (r.task.goalId === goalId || (r.task.projectId && projectIds.includes(r.task.projectId))),
+    suggestable(state, today).find(
+      (r) => r.task.goalId === goalId || (r.task.projectId && projectIds.includes(r.task.projectId)),
     )?.task ?? null
   )
 }
 
-export function blockedForGoal(state: AppState, goalId: ID, today: ISODate): Task[] {
-  const ctx: EngineContext = { state, today }
+export function blockedForGoal(state: AppState, goalId: ID): Task[] {
   const projectIds = state.projects.filter((p) => p.goalId === goalId).map((p) => p.id)
   return state.tasks.filter(
     (t) =>
       t.status === 'open' &&
       t.waitingOn &&
       (t.goalId === goalId || (t.projectId && projectIds.includes(t.projectId))) &&
-      isBlocked(t, ctx),
+      isBlocked(state, t),
   )
 }
 
@@ -146,7 +141,10 @@ export function selectReview(state: AppState, today: ISODate): ReviewView {
     .filter(
       (t) =>
         t.status === 'open' &&
-        (t.waitingOn || (t.dueOn && t.dueOn < today) || (t.plannedFor && daysBetween(t.plannedFor, today) >= 3)),
+        (t.waitingOn ||
+          (t.dueOn && t.dueOn < today) ||
+          t.postponeCount >= 2 ||
+          (t.plannedFor && daysBetween(t.plannedFor, today) >= 3)),
     )
     .map((task) => {
       if (task.waitingOn)
@@ -157,7 +155,11 @@ export function selectReview(state: AppState, today: ISODate): ReviewView {
         }
       if (task.dueOn && task.dueOn < today)
         return { task, reason: 'Its date has passed', suggestion: 'Pick a new date, or let it go' }
-      return { task, reason: 'Moved a few times', suggestion: 'Break it into one small first step' }
+      return {
+        task,
+        reason: task.postponeCount >= 2 ? `Put off ${task.postponeCount} times` : 'Planned days ago and still open',
+        suggestion: 'Break it into one small first step',
+      }
     })
 
   const active = state.projects.filter((p) => p.status === 'active')

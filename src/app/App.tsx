@@ -2,6 +2,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { QuickAdd } from '@/components/layout/QuickAdd'
 import { TaskEditor } from '@/components/tasks/TaskEditor'
+import { WaitingDialog } from '@/components/tasks/WaitingDialog'
 import { ToastProvider } from '@/components/ui/Toast'
 import { FocusPage } from '@/pages/FocusPage'
 import { GoalsPage } from '@/pages/GoalsPage'
@@ -43,6 +44,7 @@ export function App() {
               </Route>
             </Routes>
             <TaskEditor />
+            <WaitingDialog />
             <QuickAdd />
           </UiProvider>
         </HashRouter>

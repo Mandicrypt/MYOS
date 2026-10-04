@@ -1,15 +1,27 @@
-import type { ReactNode } from 'react'
+import { cloneElement, useId, type ReactElement } from 'react'
 import { cn } from '@/lib/cn'
 
 export const inputClass =
   'h-10 w-full rounded-lg border border-line bg-surface px-3 text-base text-ink outline-none transition-colors placeholder:text-faint hover:border-[var(--line-strong)] focus:border-accent'
 
-export function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/** A labelled form control. The label is tied to the control by id, so screen readers read just the label. */
+export function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: ReactElement<{ id?: string }>
+  className?: string
+}) {
+  const id = useId()
   return (
-    <label className={cn('block', className)}>
-      <span className="mb-1.5 block text-sm text-muted">{label}</span>
-      {children}
-    </label>
+    <div className={cn('block', className)}>
+      <label htmlFor={id} className="mb-1.5 block text-sm text-muted">
+        {label}
+      </label>
+      {cloneElement(children, { id })}
+    </div>
   )
 }
 

@@ -5,12 +5,32 @@ export type EngineContext = {
   today: ISODate
 }
 
+/**
+ * One reason a task matters. The engine scores with these and the UI shows
+ * the same reasons, so the explanation always matches the decision.
+ */
+export type Reason = {
+  /** Stable id, useful for analytics and for picking phrasing. */
+  key: string
+  /** How much this reason added to the score. */
+  weight: number
+  /** Short label for lists: "Due today", "Blocking 2 tasks". */
+  short: string | null
+  /** Full sentence for Focus: "Two other tasks are waiting on it." */
+  long: string | null
+}
+
 export type RankedTask = {
   task: Task
   score: number
-  /** Short human reasons, most important first. e.g. ["High impact", "Due today"] */
+  /** Up to two short labels, most important first. */
   reasons: string[]
+  /** Every reason, strongest first. */
+  why: Reason[]
+  /** Waiting on another task or on something outside MYOS. */
   blocked: boolean
+  /** The user asked MYOS not to suggest it. */
+  suppressed: boolean
 }
 
 /**

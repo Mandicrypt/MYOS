@@ -8,7 +8,7 @@ export function GoalRow({ goal }: { goal: Goal }) {
   const { state, today } = useStore()
   const projects = state.projects.filter((p) => p.goalId === goal.id && p.status !== 'done')
   const next = nextTaskForGoal(state, goal.id, today)
-  const blocked = blockedForGoal(state, goal.id, today)
+  const blocked = blockedForGoal(state, goal.id)
 
   return (
     <li className="py-8 first:pt-2">

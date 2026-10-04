@@ -32,6 +32,7 @@ export function TaskRow({ task, hideProject, reason }: TaskRowProps) {
   else if (!done && task.plannedFor && task.plannedFor > addDays(today, 1))
     meta.push(`Planned ${friendlyDay(task.plannedFor, today)}`)
   if (!done && task.signals.userImportance === 'high' && !reason) meta.push('Important')
+  if (!done && task.suppressed) meta.push('Not suggested')
 
   return (
     <li className="group flex items-start gap-3.5 py-3">

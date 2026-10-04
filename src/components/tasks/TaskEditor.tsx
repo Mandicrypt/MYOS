@@ -6,6 +6,8 @@ import { Field, Segmented, inputClass } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { addDays } from '@/lib/dates'
 import { useStore } from '@/store/store'
+import { X } from 'lucide-react'
+import { wouldCreateCycle } from '@/engine/relations'
 import type { Task, UserImportance } from '@/types'
 
 type When = 'today' | 'tomorrow' | 'later' | 'date'
@@ -48,11 +50,18 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
           : when === 'later'
             ? null
             : (draft.plannedFor ?? addDays(today, 2))
+    const { dependsOn, ...rest } = draft
     dispatch({
       type: 'task/update',
       id: draft.id,
-      patch: { ...draft, title: draft.title.trim() || 'Untitled task', plannedFor },
+      source: 'editor',
+      patch: { ...rest, title: draft.title.trim() || 'Untitled task', plannedFor },
     })
+    // Dependency changes go through their own actions so they are recorded.
+    for (const on of dependsOn.filter((d) => !task.dependsOn.includes(d)))
+      dispatch({ type: 'task/depend', id: draft.id, on, source: 'editor' })
+    for (const on of task.dependsOn.filter((d) => !dependsOn.includes(d)))
+      dispatch({ type: 'task/undepend', id: draft.id, on, source: 'editor' })
     close()
   }
 
@@ -141,6 +150,72 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
             { value: 'high', label: 'Important' },
           ]}
         />
+      </div>
+
+      <Field label="Time needed" className="max-w-xs">
+        <select
+          className={inputClass}
+          value={draft.effortMinutes ?? ''}
+          onChange={(e) => set('effortMinutes', e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">Not sure</option>
+          <option value="15">A few minutes</option>
+          <option value="30">About 30 minutes</option>
+          <option value="60">About an hour</option>
+          <option value="120">A couple of hours</option>
+          <option value="240">Half a day or more</option>
+        </select>
+      </Field>
+
+      <div>
+        <span className="mb-1.5 block text-sm text-muted">Can't start until</span>
+        {draft.dependsOn.length ? (
+          <ul className="mb-2 space-y-1">
+            {draft.dependsOn.map((id) => {
+              const dep = state.tasks.find((t) => t.id === id)
+              if (!dep) return null
+              return (
+                <li key={id} className="flex items-center justify-between gap-3 rounded-lg bg-bg px-3 py-2 text-base">
+                  <span className={dep.status === 'done' ? 'text-muted line-through' : ''}>{dep.title}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove “${dep.title}” as a requirement`}
+                    onClick={() =>
+                      set(
+                        'dependsOn',
+                        draft.dependsOn.filter((d) => d !== id),
+                      )
+                    }
+                    className="rounded-md p-1 text-muted hover:text-ink"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : null}
+        <select
+          className={inputClass}
+          value=""
+          aria-label="Add a task this one waits for"
+          onChange={(e) => e.target.value && set('dependsOn', [...draft.dependsOn, e.target.value])}
+        >
+          <option value="">{draft.dependsOn.length ? 'Add another task…' : 'Nothing — it can start any time'}</option>
+          {state.tasks
+            .filter(
+              (t) =>
+                t.status === 'open' &&
+                t.id !== draft.id &&
+                !draft.dependsOn.includes(t.id) &&
+                !wouldCreateCycle(state, draft.id, t.id),
+            )
+            .map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+        </select>
       </div>
 
       <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">

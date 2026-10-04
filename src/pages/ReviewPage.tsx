@@ -11,7 +11,7 @@ import { useStore } from '@/store/store'
 /** A supportive look back: what moved, what's stuck, what's next. */
 export function ReviewPage() {
   const { state, today } = useStore()
-  const { plan } = useTaskActions()
+  const { plan } = useTaskActions('review')
   const review = selectReview(state, today)
   const next = selectFocusTask(state, today)
 

@@ -34,11 +34,15 @@ export function buildSampleState(): AppState {
     noteIds: [],
     createdAt: created,
     completedAt: null,
+    suppressed: false,
+    postponeCount: 0,
+    origin: 'sample',
+    parentId: null,
     ...t,
   })
 
   return {
-    version: 1,
+    version: 2,
     settings: { name: 'Izuchukwu', showMeaningfulWork: true, theme: 'system' },
     goals: [
       {
@@ -160,12 +164,29 @@ export function buildSampleState(): AppState {
         noteIds: ['n-monad'],
       }),
       task({
+        id: 't-onboarding',
+        title: 'Plan the onboarding flow',
+        projectId: 'p-myos',
+        milestoneId: 'm-prototype',
+        effortMinutes: 60,
+        signals: sig(4, 2),
+        dependsOn: ['t-blueprint'],
+      }),
+      task({
         id: 't-outreach',
         title: 'Prepare project outreach',
         projectId: 'p-mandi',
         plannedFor: day(2),
         effortMinutes: 45,
         signals: sig(3, 2),
+        postponeCount: 2,
+      }),
+      task({
+        id: 't-tidy',
+        title: 'Tidy up the downloads folder',
+        plannedFor: today,
+        effortMinutes: 10,
+        signals: sig(1, 1),
       }),
       task({
         id: 't-announce',
@@ -265,11 +286,12 @@ export function buildSampleState(): AppState {
       },
     ],
     workEvents: [
-      { id: 'w1', taskId: 'd-problem', points: 23, at: ago(4) },
-      { id: 'w2', taskId: 'd-home', points: 18, at: ago(2) },
-      { id: 'w3', taskId: 'd-loop', points: 23, at: ago(1) },
-      { id: 'w4', taskId: 'd-monad-docs', points: 14, at: ago(3) },
-      { id: 'w5', taskId: 'd-mods', points: 10, at: ago(1, 11) },
+      { id: 'w1', taskId: 'd-problem', points: 23, at: ago(4), projectId: 'p-myos' },
+      { id: 'w2', taskId: 'd-home', points: 18, at: ago(2), projectId: 'p-myos' },
+      { id: 'w3', taskId: 'd-loop', points: 23, at: ago(1), projectId: 'p-myos' },
+      { id: 'w4', taskId: 'd-monad-docs', points: 14, at: ago(3), projectId: 'p-monad' },
+      { id: 'w5', taskId: 'd-mods', points: 10, at: ago(1, 11), projectId: 'p-mandi' },
     ],
+    events: [],
   }
 }

@@ -8,14 +8,16 @@ import { useStore } from '@/store/store'
 import type { Task } from '@/types'
 import { useTaskActions } from './useTaskActions'
 
+/** Every way to correct MYOS about one task, in one quiet menu. */
 export function TaskActionsMenu({ task }: { task: Task }) {
   const navigate = useNavigate()
   const { today } = useStore()
-  const { editTask } = useUi()
-  const actions = useTaskActions()
+  const { editTask, askWaiting } = useUi()
+  const actions = useTaskActions('menu')
   const forToday = isForToday(task, today)
   const forTomorrow = task.plannedFor === addDays(today, 1)
   const importance = task.signals.userImportance
+  const open = task.status === 'open'
 
   return (
     <Menu>
@@ -26,30 +28,38 @@ export function TaskActionsMenu({ task }: { task: Task }) {
         <Ellipsis className="size-4" />
       </MenuTrigger>
       <MenuContent>
-        {task.status === 'open' ? (
-          <MenuItem onSelect={() => navigate(`/focus/${task.id}`)}>Start focus</MenuItem>
-        ) : null}
+        {open ? <MenuItem onSelect={() => navigate(`/focus/${task.id}`)}>Start focus</MenuItem> : null}
         <MenuItem onSelect={() => editTask(task.id)}>Edit details</MenuItem>
-        {task.status === 'open' ? (
+        {open ? (
           <>
             <MenuSeparator />
             {!forToday ? <MenuItem onSelect={() => actions.plan(task.id, 'today')}>Do today</MenuItem> : null}
-            {!forTomorrow ? (
-              <MenuItem onSelect={() => actions.plan(task.id, 'tomorrow')}>Move to tomorrow</MenuItem>
+            {!forTomorrow ? <MenuItem onSelect={() => actions.plan(task.id, 'tomorrow')}>Do tomorrow</MenuItem> : null}
+            {task.plannedFor !== null ? (
+              <MenuItem onSelect={() => actions.plan(task.id, 'later')}>Do later</MenuItem>
             ) : null}
-            {task.plannedFor !== null || task.dueOn ? (
-              <MenuItem onSelect={() => actions.plan(task.id, 'later')}>Move to later</MenuItem>
-            ) : null}
+            <MenuItem onSelect={() => editTask(task.id)}>Change deadline</MenuItem>
             <MenuSeparator />
             {importance !== 'high' ? (
-              <MenuItem onSelect={() => actions.setImportance(task.id, 'high')}>Mark important</MenuItem>
+              <MenuItem onSelect={() => actions.setImportance(task.id, 'high')}>Make important</MenuItem>
+            ) : null}
+            {importance !== 'low' ? (
+              <MenuItem onSelect={() => actions.setImportance(task.id, 'low')}>Not important</MenuItem>
             ) : null}
             {importance !== 'normal' ? (
               <MenuItem onSelect={() => actions.setImportance(task.id, 'normal')}>Normal importance</MenuItem>
             ) : null}
-            {importance !== 'low' ? (
-              <MenuItem onSelect={() => actions.setImportance(task.id, 'low')}>Less important</MenuItem>
-            ) : null}
+            <MenuSeparator />
+            {task.waitingOn ? (
+              <MenuItem onSelect={() => actions.setWaiting(task.id, null)}>No longer waiting</MenuItem>
+            ) : (
+              <MenuItem onSelect={() => askWaiting(task.id)}>Mark as waiting</MenuItem>
+            )}
+            {task.suppressed ? (
+              <MenuItem onSelect={() => actions.setSuppressed(task.id, false)}>Suggest again</MenuItem>
+            ) : (
+              <MenuItem onSelect={() => actions.setSuppressed(task.id, true)}>Don't suggest this</MenuItem>
+            )}
           </>
         ) : null}
         <MenuSeparator />

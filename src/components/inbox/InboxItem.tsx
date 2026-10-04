@@ -35,7 +35,12 @@ export function InboxItem({ item }: { item: Item }) {
           <MenuItem
             onSelect={() =>
               convert(
-                () => dispatch({ type: 'task/add', task: { title: item.text, plannedFor: today } }),
+                () =>
+                  dispatch({
+                    type: 'task/add',
+                    task: { title: item.text, plannedFor: today, origin: 'inbox' },
+                    source: 'inbox',
+                  }),
                 'Added to today',
               )
             }
@@ -44,7 +49,10 @@ export function InboxItem({ item }: { item: Item }) {
           </MenuItem>
           <MenuItem
             onSelect={() =>
-              convert(() => dispatch({ type: 'task/add', task: { title: item.text } }), 'Added to tasks for later')
+              convert(
+                () => dispatch({ type: 'task/add', task: { title: item.text, origin: 'inbox' }, source: 'inbox' }),
+                'Added to tasks for later',
+              )
             }
           >
             Task for later
