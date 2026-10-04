@@ -1,2 +1,42 @@
-# MYOS
-A calm personal operating system that shows you what matters now and keeps everything else out of the way.
+# MYOS — Phase 0 (v2)
+
+A calm personal operating system. It shows what deserves attention now, and keeps everything else out of the way.
+
+## Run it on your computer
+
+You need Node.js (version 20 or newer).
+
+1. Open a terminal in this folder.
+2. Run `npm install` (only the first time).
+3. Run `npm run dev`.
+4. Open the address it shows, usually http://localhost:5173
+
+## Checks
+
+- `npm run typecheck` — TypeScript
+- `npm run lint` — code checks
+- `npm run build` — production build into `dist/`
+- `npm run build:single` — one self-contained HTML file in `dist-single/`
+
+## How it's organised
+
+```
+src/
+  app/          App, routes, navigation config, UI context (quick add, task editor)
+  pages/        one file per screen
+  components/   layout, navigation, tasks, projects, goals, inbox, focus, ui primitives
+  engine/       importance engine (swappable) and meaningful work scoring
+  store/        state, actions, selectors, saving to this browser
+  data/         sample data
+  types/        data model: Goal → Project → Milestone → Task → Outcome
+  lib/          dates, ids, class names
+```
+
+## Important design points
+
+- **Importance engine:** `src/engine/importance.ts`. The UI only calls `engine.rank()`.
+  To change how MYOS decides, replace the engine. No screen needs rewriting.
+- **Meaningful work:** `src/engine/meaningful-work.ts` scores a finished task by how much it
+  mattered, and stores a `WorkEvent`. No tokens, no wallets.
+- **Data:** saved in this browser only (localStorage). No accounts, database or Supabase yet.
+  Settings → "Restore sample data" or "Start with a clean slate".
