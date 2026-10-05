@@ -152,6 +152,8 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
         />
       </div>
 
+      <GoalField draft={draft} onChange={(goalId) => set('goalId', goalId)} />
+
       <Field label="Time needed" className="max-w-xs">
         <select
           className={inputClass}
@@ -242,5 +244,33 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
         </div>
       </div>
     </form>
+  )
+}
+
+/** A task serves a goal through its project, or directly when it has no project goal. */
+function GoalField({ draft, onChange }: { draft: Task; onChange: (goalId: string | null) => void }) {
+  const { state } = useStore()
+  const project = state.projects.find((p) => p.id === draft.projectId)
+  const viaProject = project?.goalId ? state.goals.find((g) => g.id === project.goalId) : undefined
+  if (viaProject) {
+    return (
+      <p className="text-sm text-muted">
+        Goal: <span className="text-ink">{viaProject.title}</span> (through {project!.title})
+      </p>
+    )
+  }
+  return (
+    <Field label="Goal" className="max-w-sm">
+      <select className={inputClass} value={draft.goalId ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">None</option>
+        {state.goals
+          .filter((g) => g.status === 'active' || g.status === 'paused' || g.id === draft.goalId)
+          .map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.title}
+            </option>
+          ))}
+      </select>
+    </Field>
   )
 }

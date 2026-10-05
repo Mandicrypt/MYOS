@@ -1,60 +1,43 @@
 import { Link } from 'react-router-dom'
-import { blockedForGoal, nextTaskForGoal } from '@/store/selectors'
+import { goalProgress, projectsForGoal } from '@/engine/goals'
+import { ProgressLine } from '@/components/ui/ProgressLine'
+import { nextTaskForGoal } from '@/store/selectors'
 import { useStore } from '@/store/store'
 import type { Goal } from '@/types'
+import { targetLabel } from './goal-labels'
 
-/** A goal and the answer to "why am I doing this, and what's moving it?" */
+/** One goal in the list: what it is, how far along, and what's moving it. */
 export function GoalRow({ goal }: { goal: Goal }) {
   const { state, today } = useStore()
-  const projects = state.projects.filter((p) => p.goalId === goal.id && p.status !== 'done')
-  const next = nextTaskForGoal(state, goal.id, today)
-  const blocked = blockedForGoal(state, goal.id)
+  const progress = goalProgress(state, goal.id)
+  const projects = projectsForGoal(state, goal.id).filter((p) => p.status !== 'done')
+  const next = goal.status === 'active' ? nextTaskForGoal(state, goal.id, today) : null
+  const meta = [
+    goal.importance === 'high' ? 'Important' : null,
+    targetLabel(goal, today),
+    projects.length ? `${projects.length} project${projects.length === 1 ? '' : 's'}` : null,
+  ].filter(Boolean)
 
   return (
-    <li className="py-8 first:pt-2">
-      <h2 className="text-lg font-medium tracking-[-0.015em]">{goal.title}</h2>
-      {goal.why ? <p className="mt-1.5 text-base text-muted">{goal.why}</p> : null}
-
-      <dl className="mt-6 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-        {projects.length ? (
-          <div>
-            <dt className="text-sm text-muted">Projects</dt>
-            <dd className="mt-1 flex flex-col items-start gap-1">
-              {projects.map((p) => (
-                <Link key={p.id} to={`/projects/${p.id}`} className="rounded-sm text-base hover:text-accent-ink">
-                  {p.title}
-                </Link>
-              ))}
-            </dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-sm text-muted">Moving it forward</dt>
-          <dd className="mt-1 text-base">
-            {next ? (
-              <Link to={`/focus/${next.id}`} className="rounded-sm hover:text-accent-ink">
-                {next.title}
-              </Link>
-            ) : (
-              <span className="text-muted">Nothing planned yet</span>
-            )}
-          </dd>
-        </div>
-        {blocked.length ? (
-          <div className="sm:col-span-2">
-            <dt className="text-sm text-muted">Held up by</dt>
-            {blocked.map((t) => (
-              <dd key={t.id} className="mt-1 text-base">
-                {t.title}{' '}
-                <span className="text-muted">
-                  · waiting for {t.waitingOn?.charAt(0).toLowerCase()}
-                  {t.waitingOn?.slice(1)}
-                </span>
-              </dd>
-            ))}
-          </div>
-        ) : null}
-      </dl>
+    <li>
+      <Link
+        to={`/goals/${goal.id}`}
+        className="block rounded-lg py-6 transition-colors hover:bg-hover md:-mx-3 md:px-3"
+      >
+        <span className="block text-lg font-medium tracking-[-0.015em]">{goal.title}</span>
+        {meta.length ? <span className="mt-1 block text-sm text-muted">{meta.join(' · ')}</span> : null}
+        {progress.total ? (
+          <span className="mt-4 flex items-center gap-3">
+            <ProgressLine percent={progress.percent ?? 0} className="max-w-48" />
+            <span className="text-sm whitespace-nowrap text-muted tabular-nums">
+              {progress.done} of {progress.total} {progress.total === 1 ? 'task' : 'tasks'} done
+            </span>
+          </span>
+        ) : (
+          <span className="mt-3 block text-sm text-muted">No linked work yet</span>
+        )}
+        {next ? <span className="mt-2 block text-sm text-muted">Next: {next.title}</span> : null}
+      </Link>
     </li>
   )
 }

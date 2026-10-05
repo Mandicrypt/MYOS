@@ -1,10 +1,12 @@
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { QuickAdd } from '@/components/layout/QuickAdd'
+import { SearchDialog } from '@/components/layout/SearchDialog'
 import { TaskEditor } from '@/components/tasks/TaskEditor'
 import { WaitingDialog } from '@/components/tasks/WaitingDialog'
 import { ToastProvider } from '@/components/ui/Toast'
 import { FocusPage } from '@/pages/FocusPage'
+import { GoalDetailPage } from '@/pages/GoalDetailPage'
 import { GoalsPage } from '@/pages/GoalsPage'
 import { HomePage } from '@/pages/HomePage'
 import { InboxPage } from '@/pages/InboxPage'
@@ -38,6 +40,7 @@ export function App() {
                   <Route path="projects" element={<ProjectsPage />} />
                   <Route path="projects/:projectId" element={<ProjectDetailPage />} />
                   <Route path="goals" element={<GoalsPage />} />
+                  <Route path="goals/:goalId" element={<GoalDetailPage />} />
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="notes/:noteId" element={<NoteEditorPage />} />
                   <Route path="review" element={<ReviewPage />} />
@@ -48,6 +51,7 @@ export function App() {
               <TaskEditor />
               <WaitingDialog />
               <QuickAdd />
+              <SearchDialog />
             </UiProvider>
           </HashRouter>
         </ToastProvider>

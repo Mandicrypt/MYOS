@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, ExternalLink } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { newId } from '@/lib/id'
 import { FocusTimer } from '@/components/focus/FocusTimer'
 import { Button, buttonClass } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -117,7 +118,7 @@ export function FocusPage() {
   const reasons = ranked?.reasons ?? []
   // Plain sentences for "Why it matters", strongest first.
   const why = (ranked?.why ?? []).filter((r) => r.long && r.weight > 0).slice(0, 3)
-  const notes = state.notes.filter((n) => task.noteIds.includes(n.id))
+  const notes = state.notes.filter((n) => n.taskId === task.id && !n.archivedAt)
   const context = [project?.title, goal?.title].filter(Boolean).join(' · ')
 
   const complete = () => {
@@ -205,6 +206,18 @@ export function FocusPage() {
               ))}
             </section>
           ) : null}
+
+          <button
+            type="button"
+            onClick={() => {
+              const id = newId()
+              dispatch({ type: 'note/add', id, taskId: task.id, projectId: task.projectId })
+              navigate(`/notes/${id}`)
+            }}
+            className="-mt-6 rounded-md text-base text-muted hover:text-ink"
+          >
+            + Add a note for this task
+          </button>
 
           {task.outcome ? (
             <p className="text-base text-muted">

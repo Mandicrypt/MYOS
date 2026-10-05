@@ -1,4 +1,4 @@
-import { Ellipsis, Plus } from 'lucide-react'
+import { Ellipsis, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { isActive, mainNav, settingsNav, type NavItem } from '@/app/navigation'
@@ -31,7 +31,7 @@ function MobileTab({ item, pathname }: { item: NavItem; pathname: string }) {
 /** Phone navigation: three destinations, a central Add, and everything else under More. */
 export function MobileNavigation() {
   const { pathname } = useLocation()
-  const { openQuickAdd } = useUi()
+  const { openQuickAdd, setSearchOpen } = useUi()
   const { state } = useStore()
   const [open, setOpen] = useState(false)
   const moreActive = more.some((n) => isActive(pathname, n.to))
@@ -71,6 +71,17 @@ export function MobileNavigation() {
       </nav>
 
       <Modal open={open} onOpenChange={setOpen} title="More" description="Other sections">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false)
+            setSearchOpen(true)
+          }}
+          className="-mx-2 mb-1 flex h-12 w-[calc(100%+1rem)] items-center gap-3.5 rounded-lg px-2 text-md text-muted"
+        >
+          <Search className="size-5" strokeWidth={1.6} />
+          Search
+        </button>
         <ul className="-mx-2">
           {more.map((item) => {
             const Icon = item.icon

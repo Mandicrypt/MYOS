@@ -42,7 +42,7 @@ export function buildSampleState(): AppState {
   })
 
   return {
-    version: 2,
+    version: 3,
     settings: { name: 'Izuchukwu', showMeaningfulWork: true, theme: 'system' },
     goals: [
       {
@@ -50,6 +50,10 @@ export function buildSampleState(): AppState {
         title: 'Launch MYOS MVP',
         why: 'One calm place to run everything — and a product other people can use too.',
         status: 'active',
+        importance: 'high',
+        targetDate: day(30),
+        completedAt: null,
+        archivedAt: null,
         createdAt: created,
       },
       {
@@ -57,6 +61,10 @@ export function buildSampleState(): AppState {
         title: 'Grow income',
         why: 'More room to choose the work I take on.',
         status: 'active',
+        importance: 'normal',
+        targetDate: null,
+        completedAt: null,
+        archivedAt: null,
         createdAt: created,
       },
       {
@@ -64,6 +72,10 @@ export function buildSampleState(): AppState {
         title: 'Improve technical skills',
         why: 'Build my own ideas without waiting on someone else.',
         status: 'active',
+        importance: 'normal',
+        targetDate: day(60),
+        completedAt: null,
+        archivedAt: null,
         createdAt: created,
       },
     ],
@@ -120,7 +132,6 @@ export function buildSampleState(): AppState {
           { id: 'c3', text: 'Write the importance rules in plain words', done: false },
           { id: 'c4', text: 'Share with one person for feedback', done: false },
         ],
-        noteIds: ['n-principles'],
         outcome: 'A blueprint the build can follow',
       }),
       task({
@@ -161,7 +172,6 @@ export function buildSampleState(): AppState {
         dueOn: day(3),
         effortMinutes: 60,
         signals: sig(4, 3),
-        noteIds: ['n-monad'],
       }),
       task({
         id: 't-onboarding',
@@ -268,6 +278,9 @@ export function buildSampleState(): AppState {
         title: 'MYOS principles',
         body: 'MYOS should make life feel smaller when you open it.\n\nShow what deserves attention now, and hide the rest until it matters.\n\nThe user sees the conclusion, not the algorithm.\n\nReward meaningful progress, never busywork.',
         projectId: 'p-myos',
+        goalId: 'g-mvp',
+        taskId: 't-blueprint',
+        archivedAt: null,
         updatedAt: ago(1, 10),
       },
       {
@@ -275,6 +288,9 @@ export function buildSampleState(): AppState {
         title: 'Monad hackathon notes',
         body: 'Entry needs a working demo, a short video and a public repo.\n\nJudges care about real use, not just a clean contract.\n\nAsk in Discord whether testnet deployment is enough.',
         projectId: 'p-monad',
+        goalId: null,
+        taskId: 't-monad-req',
+        archivedAt: null,
         updatedAt: ago(3, 18),
       },
       {
@@ -282,6 +298,9 @@ export function buildSampleState(): AppState {
         title: 'MandiCrypt relaunch ideas',
         body: 'Start with the people who stayed.\n\nWeekly AMA, one clear channel for updates, and a simple welcome for new members.',
         projectId: 'p-mandi',
+        goalId: null,
+        taskId: null,
+        archivedAt: null,
         updatedAt: ago(5, 16),
       },
     ],

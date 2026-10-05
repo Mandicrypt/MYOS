@@ -9,6 +9,8 @@ type UiValue = {
   /** Task whose "waiting for" question is open. */
   waitingTaskId: ID | null
   askWaiting: (id: ID | null) => void
+  searchOpen: boolean
+  setSearchOpen: (open: boolean) => void
   quickAdd: { open: boolean; kind: QuickAddKind }
   openQuickAdd: (kind?: QuickAddKind) => void
   closeQuickAdd: () => void
@@ -19,6 +21,7 @@ const UiContext = createContext<UiValue | null>(null)
 export function UiProvider({ children }: { children: ReactNode }) {
   const [editingTaskId, editTask] = useState<ID | null>(null)
   const [waitingTaskId, askWaiting] = useState<ID | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [quickAdd, setQuickAdd] = useState<UiValue['quickAdd']>({ open: false, kind: 'task' })
 
   const openQuickAdd = useCallback((kind: QuickAddKind = 'task') => setQuickAdd({ open: true, kind }), [])
@@ -27,6 +30,13 @@ export function UiProvider({ children }: { children: ReactNode }) {
   // ⌘K / Ctrl+K opens quick add from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const typing = target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        setSearchOpen(true)
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setQuickAdd((q) => ({ ...q, open: !q.open }))
@@ -38,7 +48,17 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
   return (
     <UiContext.Provider
-      value={{ editingTaskId, editTask, waitingTaskId, askWaiting, quickAdd, openQuickAdd, closeQuickAdd }}
+      value={{
+        editingTaskId,
+        editTask,
+        waitingTaskId,
+        askWaiting,
+        searchOpen,
+        setSearchOpen,
+        quickAdd,
+        openQuickAdd,
+        closeQuickAdd,
+      }}
     >
       {children}
     </UiContext.Provider>

@@ -30,7 +30,9 @@ MYOS works in two modes:
    Never commit `.env.local`, and never use the `service_role` key in the app.
 6. If you deploy (for example on Vercel), add the same two values as environment variables there.
 
-7. In **SQL Editor**, also run `supabase/migrations/002_wallets.sql` (wallet sign-in). It only adds a table.
+7. In **SQL Editor**, also run `supabase/migrations/002_wallets.sql` (wallet sign-in), then
+   `supabase/migrations/003_goals_notes.sql` (Phase 2: goals and notes). Both only add things;
+   they are safe to run on a database that already has data.
 
 By default Supabase asks new users to confirm their email. You can turn that off under
 **Authentication → Sign In / Providers → Email** while testing.
@@ -91,6 +93,17 @@ src/
   types/        data model: Goal → Project → Milestone → Task → Outcome
   lib/          dates, ids, class names
 ```
+
+## Goals, notes and the weekly review (Phase 2)
+
+- Goals have a description, importance, target date and status (active, paused, completed, archived).
+  Progress is never typed in: it's the share of linked tasks done (`src/engine/goals.ts`).
+- Projects link to a goal; tasks serve a goal through their project, or directly.
+- Notes link to a goal, a project and a task (each optional), can be archived, and are searchable.
+- The engine gives a little more weight to tasks serving an important goal or one due soon.
+- Weekly Review (`src/store/review.ts`) works in calendar weeks. Its recommendations come straight
+  from the engine; accepting or rejecting one is recorded as a user event. Nothing changes unless accepted.
+- Press `/` anywhere to search tasks, projects, goals, notes and inbox.
 
 ## How MYOS decides (src/engine)
 

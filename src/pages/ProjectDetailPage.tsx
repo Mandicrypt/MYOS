@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/layout/BackLink'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Section } from '@/components/layout/Section'
+import { LinkedNotes } from '@/components/notes/LinkedNotes'
 import { AddTaskInline } from '@/components/tasks/AddTaskInline'
 import { TaskList } from '@/components/tasks/TaskList'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
@@ -44,23 +45,33 @@ export function ProjectDetailPage() {
         <div>
           <h1 className="text-xl font-medium tracking-[-0.02em]">{project.title}</h1>
           {project.summary ? <p className="mt-1.5 text-md text-muted">{project.summary}</p> : null}
-          {goal || project.status !== 'active' ? (
-            <p className="mt-4 text-base text-muted">
-              {project.status === 'paused' ? 'Paused' : project.status === 'done' ? 'Finished' : null}
-              {project.status !== 'active' && goal ? ' · ' : null}
-              {goal ? (
-                <>
-                  Serves{' '}
-                  <Link
-                    to="/goals"
-                    className="rounded-sm text-ink underline decoration-line underline-offset-4 hover:decoration-[var(--control)]"
-                  >
-                    {goal.title}
-                  </Link>
-                </>
-              ) : null}
-            </p>
-          ) : null}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-muted">
+            {project.status !== 'active' ? <span>{project.status === 'paused' ? 'Paused' : 'Finished'}</span> : null}
+            <label className="flex items-center gap-1.5">
+              <span>Goal</span>
+              <select
+                value={project.goalId ?? ''}
+                onChange={(e) =>
+                  dispatch({ type: 'project/update', id: project.id, patch: { goalId: e.target.value || null } })
+                }
+                className="max-w-56 rounded-md bg-transparent py-0.5 text-ink outline-none hover:bg-hover"
+              >
+                <option value="">None</option>
+                {state.goals
+                  .filter((g) => g.status === 'active' || g.status === 'paused' || g.id === project.goalId)
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {goal ? (
+              <Link to={`/goals/${goal.id}`} className="rounded-sm text-accent-ink underline-offset-4 hover:underline">
+                Open goal
+              </Link>
+            ) : null}
+          </div>
         </div>
         <Menu>
           <MenuTrigger
@@ -117,19 +128,7 @@ export function ProjectDetailPage() {
           </Section>
         ) : null}
 
-        {notes.length ? (
-          <Section title="Notes">
-            <ul className="divide-y divide-line">
-              {notes.map((n) => (
-                <li key={n.id}>
-                  <Link to={`/notes/${n.id}`} className="block rounded-md py-3 text-base hover:text-accent-ink">
-                    {n.title || 'Untitled note'}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ) : null}
+        <LinkedNotes notes={notes} link={{ projectId: project.id }} />
       </div>
     </>
   )

@@ -5,7 +5,9 @@
 import { buildSampleState } from '../src/data/sample'
 import { engine } from '../src/engine/importance'
 import { scoreCompletion } from '../src/engine/meaningful-work'
+import { goalProgress, goalProgressChange } from '../src/engine/goals'
 import { isForToday, suggestable, suggestNext } from '../src/engine/next'
+import { selectWeekReview, weekStartOf } from '../src/store/review'
 import { countedCredits, netPoints } from '../src/engine/work-history'
 import { isBlocked } from '../src/engine/relations'
 import { addDays, todayISO } from '../src/lib/dates'
@@ -275,6 +277,85 @@ console.log('Explicit postponement is respected')
   check(
     'suggestNext ignores a near deadline the user planned past',
     suggestNext(d, today, ux, [])?.ranked.task.id !== 't-monad-req',
+  )
+}
+
+console.log('Phase 2: goals')
+{
+  let g = buildSampleState()
+  const p0 = goalProgress(g, 'g-mvp')
+  check(
+    'goal progress is derived from linked work',
+    p0.total > 0 && p0.done === g.tasks.filter((t) => t.projectId === 'p-myos' && t.status === 'done').length,
+    `${p0.done}/${p0.total}`,
+  )
+  g = reducer(g, { type: 'task/complete', id: 't-ux' })
+  const p1 = goalProgress(g, 'g-mvp')
+  check(
+    'completing linked work moves the goal',
+    p1.done === p0.done + 1 && (p1.percent ?? 0) > (p0.percent ?? 0),
+    `${p0.percent}% → ${p1.percent}%`,
+  )
+  check(
+    'weekly change is measured from real completions',
+    goalProgressChange(g, 'g-mvp', addDays(today, -7) + 'T00:00:00.000Z', new Date(Date.now() + 1000).toISOString()) >
+      0,
+  )
+  // A task directly on a goal (no project) counts too.
+  g = reducer(g, { type: 'task/add', id: 'direct', task: { title: 'Read Rust book', goalId: 'g-skills' } })
+  check('tasks linked straight to a goal count', goalProgress(g, 'g-skills').total === 2)
+
+  // Goal importance feeds the existing engine (no second engine).
+  let e = buildSampleState()
+  const before = get(e, 't-outreach').score
+  e = reducer(e, { type: 'goal/update', id: 'g-income', patch: { importance: 'high' } })
+  check(
+    'a task serving an important goal ranks higher',
+    get(e, 't-outreach').score > before,
+    `${before.toFixed(1)} → ${get(e, 't-outreach').score.toFixed(1)}`,
+  )
+  e = reducer(e, { type: 'goal/update', id: 'g-income', patch: { targetDate: addDays(today, 3) } })
+  check(
+    '…and higher again when its goal is due soon',
+    get(e, 't-outreach').why.some((r) => r.key === 'goal-target'),
+  )
+  e = reducer(e, { type: 'goal/status', id: 'g-income', status: 'paused' })
+  check('a paused goal stops adding weight', !get(e, 't-outreach').why.some((r) => r.key.startsWith('goal')))
+}
+
+console.log('Phase 2: weekly review recommendations')
+{
+  let w = buildSampleState()
+  const review = selectWeekReview(w, weekStartOf(today), today)
+  check(
+    'recommendations come from the engine, at most 3',
+    review.recommendations.length > 0 && review.recommendations.length <= 3,
+  )
+  const first = review.recommendations[0].ranked.task.id
+  const top = suggestable(w, today).filter((r) => !isForToday(r.task, today))[0].task.id
+  check('…in the engine’s own order', first === top)
+  w = reducer(w, {
+    type: 'recommendation/decide',
+    id: first,
+    accepted: true,
+    plannedFor: review.nextWeekStart,
+    source: 'review',
+  })
+  check('accepting plans it for next week', w.tasks.find((t) => t.id === first)?.plannedFor === review.nextWeekStart)
+  check('…and records the decision', w.events.at(-1)?.type === 'recommendation.accepted')
+  const second = selectWeekReview(w, weekStartOf(today), today).recommendations.find((r) => r.decision === null)!.ranked
+    .task.id
+  const plannedBefore = w.tasks.find((t) => t.id === second)!.plannedFor
+  w = reducer(w, { type: 'recommendation/decide', id: second, accepted: false, source: 'review' })
+  check('rejecting changes nothing about the task', w.tasks.find((t) => t.id === second)!.plannedFor === plannedBefore)
+  const after = selectWeekReview(w, weekStartOf(today), today)
+  check(
+    'rejected item is not suggested again this week',
+    !after.recommendations.some((r) => r.ranked.task.id === second),
+  )
+  check(
+    'accepted item stays visible as planned',
+    after.recommendations.some((r) => r.ranked.task.id === first && r.decision === 'accepted'),
   )
 }
 

@@ -21,7 +21,10 @@ export function friendlyWalletError(error: unknown): string {
   if (/eth_requestAccounts|no accounts|unlock/i.test(message))
     return 'Couldn’t connect to your wallet. Unlock it and try again.'
   const friendly = friendlyAuthError(message)
-  return friendly === message ? 'Wallet sign-in didn’t complete. Please try again.' : friendly
+  if (friendly !== message) return friendly
+  // Unknown problem: say so plainly, and include the original reason so it can be fixed.
+  const detail = message.replace(/^@supabase\/auth-js:\s*/, '').trim()
+  return detail ? `Wallet sign-in didn’t complete. (${detail})` : 'Wallet sign-in didn’t complete. Please try again.'
 }
 
 export const shortAddress = (address: string) => `${address.slice(0, 6)}…${address.slice(-4)}`

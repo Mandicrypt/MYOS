@@ -89,12 +89,27 @@ function urgency(task: Task, ctx: EngineContext): Reason[] {
 function alignment(task: Task, ctx: EngineContext): Reason[] {
   const goal = goalOf(ctx.state, task)
   const project = projectOf(ctx.state, task)
-  if (goal) {
-    const short = project ? `Moves ${project.title} forward` : `Supports “${goal.title}”`
-    return reason('goal', 4, short, `It moves you toward ${goal.title}.`)
+  if (!goal) return project ? reason('project', 2, null, null) : reason('unaligned', 0, null, null)
+
+  const short = project ? `Moves ${project.title} forward` : `Supports “${goal.title}”`
+  const reasons = reason('goal', 4, short, `It moves you toward ${goal.title}.`)
+
+  // Phase 2: the goal's own importance and target date add context.
+  if (goal.importance === 'high')
+    reasons.push(
+      ...reason('goal-important', 3, `Serves an important goal`, `${goal.title} is one of your important goals.`),
+    )
+  if (goal.importance === 'low') reasons.push(...reason('goal-low', -1, null, null))
+  if (goal.targetDate) {
+    const days = daysBetween(ctx.today, goal.targetDate)
+    if (days >= 0 && days <= 14) {
+      const when = friendlyDay(goal.targetDate, ctx.today)
+      reasons.push(
+        ...reason('goal-target', days <= 7 ? 3 : 1.5, `Goal due ${when}`, `${goal.title} has a target date ${when}.`),
+      )
+    }
   }
-  if (project) return reason('project', 2, null, null)
-  return reason('unaligned', 0, null, null)
+  return reasons
 }
 
 /**
@@ -194,6 +209,8 @@ const OVERLAPS: string[][] = [
   ['user-high', 'impact'],
   ['overdue', 'due', 'milestone'],
   ['goal', 'momentum'],
+  ['goal-important', 'user-high', 'impact'],
+  ['goal-target', 'overdue', 'due', 'milestone'],
 ]
 
 function pickLabels(why: Reason[]): string[] {

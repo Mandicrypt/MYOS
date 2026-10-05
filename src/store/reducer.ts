@@ -3,11 +3,27 @@ import { activeCreditFor } from '@/engine/work-history'
 import { goalOf, isBlocked, newlyUnblockedBy, wouldCreateCycle } from '@/engine/relations'
 import { daysBetween, todayISO } from '@/lib/dates'
 import { newId } from '@/lib/id'
-import type { ActionSource, AppState, ID, ISODate, Project, Settings, Task, TaskOrigin, UserImportance } from '@/types'
+import type {
+  ActionSource,
+  AppState,
+  Goal,
+  GoalImportance,
+  GoalStatus,
+  ID,
+  ISODate,
+  Note,
+  Project,
+  Settings,
+  Task,
+  TaskOrigin,
+  UserImportance,
+} from '@/types'
 import { record } from './events'
 
 export type NewTask = Pick<Task, 'title'> &
   Partial<Pick<Task, 'plannedFor' | 'projectId' | 'goalId' | 'dueOn' | 'description'>> & { origin?: TaskOrigin }
+
+type NotePatch = Partial<Pick<Note, 'title' | 'body' | 'projectId' | 'goalId' | 'taskId'>>
 
 /** Every task action can say where it came from and whether MYOS was suggesting it. */
 type Meta = { source?: ActionSource; wasSuggested?: boolean }
@@ -29,12 +45,25 @@ export type Action =
   | ({ type: 'task/delete'; id: ID } & Meta)
   | { type: 'inbox/add'; text: string }
   | { type: 'inbox/remove'; id: ID }
-  | { type: 'note/add'; id: ID; title?: string; body?: string; projectId?: ID | null }
-  | { type: 'note/update'; id: ID; patch: { title?: string; body?: string; projectId?: ID | null } }
+  | {
+      type: 'note/add'
+      id: ID
+      title?: string
+      body?: string
+      projectId?: ID | null
+      goalId?: ID | null
+      taskId?: ID | null
+    }
+  | { type: 'note/update'; id: ID; patch: NotePatch }
+  | { type: 'note/archive'; id: ID; archived: boolean }
   | { type: 'note/delete'; id: ID }
   | { type: 'project/add'; id?: ID; title: string; summary?: string }
   | { type: 'project/update'; id: ID; patch: Partial<Omit<Project, 'id'>> }
-  | { type: 'goal/add'; id?: ID; title: string; why?: string }
+  | { type: 'goal/add'; id?: ID; title: string; why?: string; importance?: GoalImportance; targetDate?: ISODate | null }
+  | { type: 'goal/update'; id: ID; patch: Partial<Pick<Goal, 'title' | 'why' | 'importance' | 'targetDate'>> }
+  | { type: 'goal/status'; id: ID; status: GoalStatus }
+  /** Weekly Review: the user accepts (and plans) or turns down a recommended task. */
+  | ({ type: 'recommendation/decide'; id: ID; accepted: boolean; plannedFor?: ISODate } & Meta)
   | { type: 'settings/update'; patch: Partial<Settings> }
   | { type: 'state/replace'; state: AppState }
 
@@ -277,6 +306,8 @@ export function reducer(state: AppState, action: Action): AppState {
             t.dependsOn.includes(action.id) ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== action.id) } : t,
           ),
         // Work history and earlier user events stay: the work happened even if the task is gone.
+        // Notes stay too; they just stop pointing at the deleted task.
+        notes: state.notes.map((n) => (n.taskId === action.id ? { ...n, taskId: null } : n)),
       }
       next = record(next, 'task.deleted', action.id, {
         ...meta(action),
@@ -301,6 +332,10 @@ export function reducer(state: AppState, action: Action): AppState {
             title: action.title ?? '',
             body: action.body ?? '',
             projectId: action.projectId ?? null,
+            goalId: action.goalId ?? null,
+            taskId: action.taskId ?? null,
+            archivedAt: null,
+            createdAt: now(),
             updatedAt: now(),
           },
           ...state.notes,
@@ -310,6 +345,13 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         notes: state.notes.map((n) => (n.id === action.id ? { ...n, ...action.patch, updatedAt: now() } : n)),
+      }
+    case 'note/archive':
+      return {
+        ...state,
+        notes: state.notes.map((n) =>
+          n.id === action.id ? { ...n, archivedAt: action.archived ? now() : null, updatedAt: now() } : n,
+        ),
       }
     case 'note/delete':
       return {
@@ -342,9 +384,45 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         goals: [
           ...state.goals,
-          { id: action.id ?? newId(), title: action.title, why: action.why ?? '', status: 'active', createdAt: now() },
+          {
+            id: action.id ?? newId(),
+            title: action.title,
+            why: action.why ?? '',
+            status: 'active',
+            importance: action.importance ?? 'normal',
+            targetDate: action.targetDate ?? null,
+            completedAt: null,
+            archivedAt: null,
+            createdAt: now(),
+          },
         ],
       }
+    case 'goal/update':
+      return { ...state, goals: state.goals.map((g) => (g.id === action.id ? { ...g, ...action.patch } : g)) }
+    case 'goal/status':
+      return {
+        ...state,
+        goals: state.goals.map((g) =>
+          g.id === action.id
+            ? {
+                ...g,
+                status: action.status,
+                completedAt: action.status === 'completed' ? (g.completedAt ?? now()) : null,
+                archivedAt: action.status === 'archived' ? (g.archivedAt ?? now()) : null,
+              }
+            : g,
+        ),
+      }
+    case 'recommendation/decide': {
+      const task = state.tasks.find((t) => t.id === action.id)
+      if (!task) return state
+      const decided =
+        action.accepted && action.plannedFor !== undefined ? plan(state, task, action.plannedFor, action) : state
+      return record(decided, action.accepted ? 'recommendation.accepted' : 'recommendation.rejected', action.id, {
+        ...meta(action),
+        data: action.accepted ? { plannedFor: action.plannedFor ?? null } : undefined,
+      })
+    }
     case 'settings/update':
       return { ...state, settings: { ...state.settings, ...action.patch } }
     case 'state/replace':

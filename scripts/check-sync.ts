@@ -7,7 +7,7 @@ import { countedCredits, netPoints, reconcileWorkLog } from '../src/engine/work-
 import { isUuid, newId } from '../src/lib/id'
 import { MemoryRepository } from '../src/store/cloud/memory-repository'
 import { rowsToState } from '../src/store/cloud/rows'
-import { emptyState, STATE_VERSION } from '../src/store/persistence'
+import { emptyState, migrateSaved, STATE_VERSION } from '../src/store/persistence'
 import { reducer, type Action } from '../src/store/reducer'
 import { SyncController } from '../src/store/sync/controller'
 import { diffStates } from '../src/store/sync/diff'
@@ -212,7 +212,7 @@ async function main() {
   check(
     'relationships survive',
     imported.projects.some((p) => p.id === blueprint.projectId) &&
-      imported.notes.some((n) => blueprint.noteIds.includes(n.id)),
+      imported.notes.some((n) => n.taskId === blueprint.id && n.goalId !== null),
   )
   check(
     'UUIDs that already existed are kept',
@@ -236,6 +236,88 @@ async function main() {
   check(
     'accounts stay separate',
     (await cloudNow()).tasks.every((t) => t.title !== 'Finish MYOS product blueprint'),
+  )
+
+  console.log('Phase 2: goals and note links sync')
+  const goalId = newId()
+  laptop.do({
+    type: 'goal/add',
+    id: goalId,
+    title: 'Become a stronger Web3 developer',
+    importance: 'high',
+    targetDate: '2027-01-31',
+  })
+  laptop.do({ type: 'project/update', id: projectId, patch: { goalId } })
+  const t2 = newId()
+  laptop.do({ type: 'task/add', id: t2, task: { title: 'Study ERC-20 architecture', projectId } })
+  const noteId = newId()
+  laptop.do({ type: 'note/add', id: noteId, title: 'ERC-20 notes', goalId, taskId: t2 })
+  await laptop.sync.flush()
+  await phone.sync.pull()
+  const pg = phone.state.goals.find((g) => g.id === goalId)
+  check(
+    'goal with importance and target date reaches the phone',
+    pg?.importance === 'high' && pg?.targetDate === '2027-01-31',
+  )
+  check('project → goal link syncs', phone.state.projects.find((p) => p.id === projectId)?.goalId === goalId)
+  const pn = phone.state.notes.find((n) => n.id === noteId)
+  check('note → goal and note → task links sync', pn?.goalId === goalId && pn?.taskId === t2)
+  phone.do({ type: 'goal/status', id: goalId, status: 'completed' })
+  phone.do({ type: 'note/archive', id: noteId, archived: true })
+  await phone.sync.flush()
+  await laptop.sync.pull()
+  check('completing a goal syncs', laptop.state.goals.find((g) => g.id === goalId)?.status === 'completed')
+  check('archiving a note syncs', laptop.state.notes.find((n) => n.id === noteId)?.archivedAt !== null)
+  laptop.do({ type: 'task/delete', id: t2 })
+  check(
+    'deleting a task unlinks its notes, keeps the note',
+    laptop.state.notes.find((n) => n.id === noteId)?.taskId === null,
+  )
+  await laptop.sync.flush()
+  const writes = repo.writes
+  await laptop.sync.pull()
+  await phone.sync.pull()
+  check(
+    'new fields round-trip without endless re-uploads',
+    repo.writes === writes + 0 || repo.writes === writes + 1,
+    `${repo.writes - writes} write(s)`,
+  )
+
+  console.log('Phase 2: older saved data upgrades')
+  const v2 = buildSampleState() as unknown as Record<string, unknown> & {
+    tasks: { id: string; noteIds: string[] }[]
+    goals: Record<string, unknown>[]
+    notes: Record<string, unknown>[]
+  }
+  v2.version = 2
+  v2.tasks.find((t) => t.id === 't-blueprint')!.noteIds = ['n-principles']
+  for (const n of v2.notes) {
+    delete n.taskId
+    delete n.goalId
+    delete n.archivedAt
+  }
+  v2.goals[0].status = 'achieved'
+  for (const g of v2.goals) {
+    delete g.importance
+    delete g.targetDate
+  }
+  const upgraded = migrateSaved(v2 as never)!
+  check('version moves to 3', upgraded.version === 3)
+  check(
+    'old task → note link becomes note → task',
+    upgraded.notes.find((n) => n.id === 'n-principles')?.taskId === 't-blueprint',
+  )
+  check(
+    'old list is cleared, one source of truth',
+    upgraded.tasks.every((t) => t.noteIds.length === 0),
+  )
+  check(
+    '"achieved" goals become "completed"',
+    upgraded.goals[0].status === 'completed' && upgraded.goals[0].completedAt !== null,
+  )
+  check(
+    'missing goal fields get safe defaults',
+    upgraded.goals.every((g) => g.importance === 'normal' || g.importance === 'high'),
   )
 
   console.log(`\nAll ${passed} sync checks passed.`)

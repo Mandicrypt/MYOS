@@ -53,6 +53,7 @@ export type Task = {
   waitingOn?: string
   checklist: ChecklistItem[]
   links: TaskLink[]
+  /** @deprecated Since Phase 2 notes point to their task (Note.taskId). Always empty. */
   noteIds: ID[]
   /** What finishing this task produces. */
   outcome?: string
@@ -92,24 +93,34 @@ export type Milestone = {
   updatedAt?: ISODateTime
 }
 
-export type GoalStatus = 'active' | 'paused' | 'achieved'
+export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived'
+export type GoalImportance = 'low' | 'normal' | 'high'
 
 export type Goal = {
   id: ID
   title: string
+  /** The description: why this goal matters. */
   why: string
   status: GoalStatus
+  importance: GoalImportance
+  targetDate: ISODate | null
+  completedAt: ISODateTime | null
+  archivedAt: ISODateTime | null
   createdAt: ISODateTime
   updatedAt?: ISODateTime
 }
 
 export type InboxItem = { id: ID; text: string; createdAt: ISODateTime; updatedAt?: ISODateTime }
 
+/** A note can give context to a project, a goal and a task, each optional. */
 export type Note = {
   id: ID
   title: string
   body: string
   projectId: ID | null
+  goalId: ID | null
+  taskId: ID | null
+  archivedAt: ISODateTime | null
   createdAt?: ISODateTime
   updatedAt: ISODateTime
 }
@@ -175,6 +186,9 @@ export type UserEventType =
   | 'task.dependency_removed'
   | 'task.unblocked'
   | 'task.deleted'
+  /** Weekly Review: the user accepted or turned down a recommended priority. */
+  | 'recommendation.accepted'
+  | 'recommendation.rejected'
 
 /**
  * One thing the user did, or one thing that happened to a task.

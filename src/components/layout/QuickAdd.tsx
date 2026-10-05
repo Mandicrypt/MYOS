@@ -70,11 +70,12 @@ function QuickAddForm({ initialKind, onDone }: { initialKind: QuickAddKind; onDo
         navigate(`/projects/${id}`)
         break
       }
-      case 'goal':
-        dispatch({ type: 'goal/add', title: value })
-        navigate('/goals')
-        toast.show('Goal added')
+      case 'goal': {
+        const id = newId()
+        dispatch({ type: 'goal/add', id, title: value })
+        navigate(`/goals/${id}`)
         break
+      }
     }
     onDone()
   }

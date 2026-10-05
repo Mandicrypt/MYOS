@@ -69,16 +69,18 @@ export function AuthPage() {
 
   return (
     <CalmScreen>
-      <button
-        type="button"
-        onClick={() => {
-          setView('choose')
-          setError(null)
-        }}
-        className="mt-8 -ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-base text-muted hover:text-ink"
-      >
-        <ArrowLeft className="size-4" /> Other ways to sign in
-      </button>
+      <div className="mt-8">
+        <button
+          type="button"
+          onClick={() => {
+            setView('choose')
+            setError(null)
+          }}
+          className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-base text-muted hover:text-ink"
+        >
+          <ArrowLeft className="size-4" /> Other ways to sign in
+        </button>
+      </div>
       <h1 className="mt-6 text-xl font-medium tracking-[-0.02em]">{signingIn ? 'Sign in' : 'Create your account'}</h1>
       <p className="mt-1.5 text-base text-muted">
         {signingIn ? 'Pick up where you left off, on any device.' : 'Your projects, tasks and notes, private to you.'}
