@@ -1,5 +1,6 @@
 import { addDays, daysBetween } from '@/lib/dates'
 import type { AppState, Goal, ID, ISODate, Project, Task } from '@/types'
+import { goalIdOf } from './relations'
 
 /**
  * Goals, derived from real work. Nothing here is typed in by the user:
@@ -11,10 +12,9 @@ export function projectsForGoal(state: AppState, goalId: ID): Project[] {
   return state.projects.filter((p) => p.goalId === goalId)
 }
 
-/** Tasks that serve this goal: linked directly, or through one of its projects. */
+/** Tasks that serve this goal, by the one rule in goalIdOf (direct link first, then project). */
 export function tasksForGoal(state: AppState, goalId: ID): Task[] {
-  const projectIds = new Set(projectsForGoal(state, goalId).map((p) => p.id))
-  return state.tasks.filter((t) => t.goalId === goalId || (t.projectId !== null && projectIds.has(t.projectId)))
+  return state.tasks.filter((t) => goalIdOf(state, t) === goalId)
 }
 
 export type GoalProgress = {

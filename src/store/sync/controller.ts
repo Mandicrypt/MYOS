@@ -131,6 +131,9 @@ export class SyncController {
         return true
       } catch (error) {
         this.failed(error)
+        // The cloud may have changed under us (e.g. another device deleted something
+        // this device still links to). Fetching first repairs that, then uploads again.
+        if (/foreign key/i.test(String((error as Error)?.message ?? error))) void this.pull()
         return false
       }
     })

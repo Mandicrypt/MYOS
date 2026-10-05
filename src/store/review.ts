@@ -1,4 +1,5 @@
-import { goalProgressChange, projectsForGoal, tasksForGoal } from '@/engine/goals'
+import { goalProgressChange, tasksForGoal } from '@/engine/goals'
+import { goalIdOf } from '@/engine/relations'
 import { isForToday, suggestable } from '@/engine/next'
 import type { RankedTask } from '@/engine/types'
 import { countedCredits } from '@/engine/work-history'
@@ -27,7 +28,14 @@ export type CompletedGroup = {
   items: { taskId: ID; title: string; exists: boolean }[]
 }
 export type AttentionItem = { key: string; title: string; reason: string; to: string; taskId?: ID }
-export type GoalWeek = { goal: Goal; change: number; projectsWorked: number; tasksCompleted: number }
+export type GoalWeek = {
+  goal: Goal
+  change: number
+  projectsWorked: number
+  tasksCompleted: number
+  /** Set when the goal was completed during this week. */
+  completedThisWeek: boolean
+}
 export type Recommendation = { ranked: RankedTask; decision: 'accepted' | 'rejected' | null }
 
 export type WeekReview = {
@@ -80,19 +88,28 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
 
   // --- Goals: did they move?
   const activeGoals = state.goals.filter((g) => g.status === 'active')
-  const goals: GoalWeek[] = activeGoals.map((goal) => {
-    const goalTaskIds = new Set(tasksForGoal(state, goal.id).map((t) => t.id))
-    const goalProjectIds = new Set(projectsForGoal(state, goal.id).map((p) => p.id))
-    const goalCredits = [...byTask.values()].filter(
-      (c) => goalTaskIds.has(c.taskId) || c.goalId === goal.id || (c.projectId && goalProjectIds.has(c.projectId)),
-    )
-    return {
-      goal,
-      change: goalProgressChange(state, goal.id, from, to),
-      projectsWorked: new Set(goalCredits.map((c) => c.projectId).filter(Boolean)).size,
-      tasksCompleted: goalCredits.length,
-    }
-  })
+  // A completion counts toward the goal its task serves now (one rule: goalIdOf),
+  // or, for a task deleted since, the goal recorded when it was completed.
+  const goalOfCredit = (c: (typeof credits)[number]): ID | null => {
+    const task = state.tasks.find((t) => t.id === c.taskId)
+    return task ? goalIdOf(state, task) : (c.goalId ?? null)
+  }
+  // Every goal that was live during this week: active ones, plus any that moved or
+  // were completed in it. Goals finished before the week began are left out.
+  const goals: GoalWeek[] = state.goals
+    .filter((g) => g.createdAt < to)
+    .filter((g) => !((g.completedAt && g.completedAt < from) || (g.archivedAt && g.archivedAt < from)))
+    .map((goal) => {
+      const goalCredits = [...byTask.values()].filter((c) => goalOfCredit(c) === goal.id)
+      return {
+        goal,
+        change: goalProgressChange(state, goal.id, from, to),
+        projectsWorked: new Set(goalCredits.map((c) => c.projectId).filter(Boolean)).size,
+        tasksCompleted: goalCredits.length,
+        completedThisWeek: Boolean(goal.completedAt && goal.completedAt >= from && goal.completedAt < to),
+      }
+    })
+    .filter((g) => g.goal.status === 'active' || g.completedThisWeek || g.tasksCompleted > 0 || g.change > 0)
 
   // --- Attention needed (only meaningful for the current week).
   const attention: AttentionItem[] = []
@@ -118,7 +135,9 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
         taskId: task.id,
       })
     }
-    for (const p of state.projects.filter((p) => p.status === 'active')) {
+    // Only things old enough to have stalled: nothing created in the last 14 days is flagged.
+    const oldEnough = (createdAt: string) => daysBetween(createdAt.slice(0, 10), today) >= STALE_DAYS
+    for (const p of state.projects.filter((p) => p.status === 'active' && oldEnough(p.createdAt))) {
       const hasOpen = open.some((t) => t.projectId === p.id)
       const moved = recent.some((e) => e.projectId === p.id)
       if (hasOpen && !moved)
@@ -129,7 +148,7 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
           to: `/projects/${p.id}`,
         })
     }
-    for (const g of activeGoals) {
+    for (const g of activeGoals.filter((g) => oldEnough(g.createdAt))) {
       const goalTaskIds = new Set(tasksForGoal(state, g.id).map((t) => t.id))
       const moved = recent.some((e) => goalTaskIds.has(e.taskId) || e.goalId === g.id)
       if (!moved)

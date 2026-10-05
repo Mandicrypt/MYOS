@@ -407,7 +407,13 @@ export function reducer(state: AppState, action: Action): AppState {
             ? {
                 ...g,
                 status: action.status,
-                completedAt: action.status === 'completed' ? (g.completedAt ?? now()) : null,
+                // Archiving a completed goal keeps the date it was completed.
+                completedAt:
+                  action.status === 'completed'
+                    ? (g.completedAt ?? now())
+                    : action.status === 'archived'
+                      ? g.completedAt
+                      : null,
                 archivedAt: action.status === 'archived' ? (g.archivedAt ?? now()) : null,
               }
             : g,

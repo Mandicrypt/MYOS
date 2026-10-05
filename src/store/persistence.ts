@@ -1,4 +1,3 @@
-import { buildSampleState } from '@/data/sample'
 import type { AppState, Goal, Note, Task } from '@/types'
 
 /**
@@ -92,9 +91,12 @@ export function removeCache(key: string): void {
   }
 }
 
-/** Local-only mode: saved state from this browser, or sample data. */
+/**
+ * Local-only mode: saved state from this browser. A first visit starts empty,
+ * like a new account; sample data is one click away in Settings.
+ */
 export function loadState(): AppState {
-  return readCache(LEGACY_KEY) ?? buildSampleState()
+  return readCache(LEGACY_KEY) ?? emptyState()
 }
 
 export function saveState(state: AppState): void {

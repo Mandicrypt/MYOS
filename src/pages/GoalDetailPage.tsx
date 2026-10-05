@@ -80,7 +80,13 @@ export function GoalDetailPage() {
               <MenuItem onSelect={() => setStatus('paused', 'Goal paused')}>Pause goal</MenuItem>
             ) : null}
             {goal.status !== 'active' ? (
-              <MenuItem onSelect={() => setStatus('active', 'Goal is active again')}>Make active again</MenuItem>
+              <MenuItem onSelect={() => setStatus('active', 'Goal is active again')}>
+                {goal.status === 'paused'
+                  ? 'Resume goal'
+                  : goal.status === 'completed'
+                    ? 'Reopen goal'
+                    : 'Restore goal'}
+              </MenuItem>
             ) : null}
             {goal.status !== 'archived' ? (
               <MenuItem onSelect={() => setStatus('archived', 'Goal archived')}>Archive goal</MenuItem>

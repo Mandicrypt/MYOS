@@ -10,9 +10,18 @@ export function milestoneOf(state: AppState, task: Task): Milestone | undefined 
   return task.milestoneId ? state.milestones.find((m) => m.id === task.milestoneId) : undefined
 }
 
-/** A task's goal: set directly, or through its project. Only active goals count. */
+/**
+ * The one rule for which goal a task serves: its direct goal if it has one,
+ * otherwise its project's goal. A task always serves at most one goal.
+ * Every screen and calculation goes through this (or goalOf, below).
+ */
+export function goalIdOf(state: AppState, task: Task): string | null {
+  return task.goalId ?? projectOf(state, task)?.goalId ?? null
+}
+
+/** The task's goal, only if that goal is active. Used for priorities and scoring. */
 export function goalOf(state: AppState, task: Task): Goal | undefined {
-  const id = task.goalId ?? projectOf(state, task)?.goalId
+  const id = goalIdOf(state, task)
   const goal = id ? state.goals.find((g) => g.id === id) : undefined
   return goal?.status === 'active' ? goal : undefined
 }

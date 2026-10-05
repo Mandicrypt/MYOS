@@ -1,4 +1,11 @@
-import { LOG_TABLES, MUTABLE_TABLES, type ChangeSet, type CloudRepository, type CloudSnapshot } from './repository'
+import {
+  LOG_TABLES,
+  MUTABLE_TABLES,
+  type ChangeSet,
+  type CloudRepository,
+  type CloudSnapshot,
+  type MutableTable,
+} from './repository'
 import type { Row } from './rows'
 
 type Tables = Record<keyof CloudSnapshot, Map<string, Row>>
@@ -83,6 +90,36 @@ export class MemoryRepository implements CloudRepository {
       for (const row of changes.appends[table])
         if (!t[table].has(row.id as string)) t[table].set(row.id as string, { ...row })
     for (const table of MUTABLE_TABLES) for (const id of changes.deletes[table]) t[table].delete(id)
+    // Like "on delete set null": rows pointing at a deleted task lose that link.
+    for (const id of changes.deletes.tasks)
+      for (const note of t.notes.values()) if (note.task_id === id) note.task_id = null
+    this.checkLinks(t, changes)
+  }
+
+  /**
+   * Refuses links to records that don't exist, like Postgres foreign keys do.
+   * (Checked after the whole batch, like the real database checks a statement.)
+   */
+  private checkLinks(t: Tables, changes: ChangeSet) {
+    const missing = (table: keyof Tables, id: unknown) => id != null && !t[table].has(id as string)
+    const refs: [keyof Tables, string, keyof Tables][] = [
+      ['projects', 'goal_id', 'goals'],
+      ['milestones', 'project_id', 'projects'],
+      ['tasks', 'project_id', 'projects'],
+      ['tasks', 'goal_id', 'goals'],
+      ['tasks', 'milestone_id', 'milestones'],
+      ['notes', 'project_id', 'projects'],
+      ['notes', 'goal_id', 'goals'],
+      ['notes', 'task_id', 'tasks'],
+    ]
+    for (const [table, column, target] of refs) {
+      for (const row of changes.upserts[table as MutableTable] ?? []) {
+        if (missing(target, row[column])) {
+          // Undo nothing (tests only need the refusal), but fail like Postgres would.
+          throw new Error(`${table}: violates foreign key constraint on ${column}`)
+        }
+      }
+    }
   }
 
   /** For checks: how many rows a table holds for a user. */

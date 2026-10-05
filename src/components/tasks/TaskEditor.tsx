@@ -247,24 +247,24 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
   )
 }
 
-/** A task serves a goal through its project, or directly when it has no project goal. */
+/**
+ * Which goal a task serves. "Same as project" (empty) follows the project's goal;
+ * picking a goal links the task directly, which takes precedence (see goalIdOf).
+ */
 function GoalField({ draft, onChange }: { draft: Task; onChange: (goalId: string | null) => void }) {
   const { state } = useStore()
   const project = state.projects.find((p) => p.id === draft.projectId)
-  const viaProject = project?.goalId ? state.goals.find((g) => g.id === project.goalId) : undefined
-  if (viaProject) {
-    return (
-      <p className="text-sm text-muted">
-        Goal: <span className="text-ink">{viaProject.title}</span> (through {project!.title})
-      </p>
-    )
-  }
+  const projectGoal = project?.goalId ? state.goals.find((g) => g.id === project.goalId) : undefined
+  const inheritLabel = projectGoal ? `${projectGoal.title} (from ${project!.title})` : 'None'
   return (
     <Field label="Goal" className="max-w-sm">
       <select className={inputClass} value={draft.goalId ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-        <option value="">None</option>
+        <option value="">{inheritLabel}</option>
         {state.goals
-          .filter((g) => g.status === 'active' || g.status === 'paused' || g.id === draft.goalId)
+          .filter(
+            (g) =>
+              (g.status === 'active' || g.status === 'paused' || g.id === draft.goalId) && g.id !== projectGoal?.id,
+          )
           .map((g) => (
             <option key={g.id} value={g.id}>
               {g.title}

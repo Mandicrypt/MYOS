@@ -1,6 +1,6 @@
 import { engine } from '@/engine/importance'
 import { isForToday, suggestable } from '@/engine/next'
-import { isBlocked } from '@/engine/relations'
+import { goalIdOf, isBlocked } from '@/engine/relations'
 import { countedCredits } from '@/engine/work-history'
 import type { EngineContext, RankedTask } from '@/engine/types'
 import { addDays, daysBetween } from '@/lib/dates'
@@ -66,9 +66,10 @@ export function projectFor(state: AppState, task: Task): Project | undefined {
   return state.projects.find((p) => p.id === task.projectId)
 }
 
+/** The goal a task serves, whatever that goal's status (for showing context). */
 export function goalFor(state: AppState, task: Task): Goal | undefined {
-  const id = task.goalId ?? projectFor(state, task)?.goalId
-  return state.goals.find((g) => g.id === id)
+  const id = goalIdOf(state, task)
+  return id ? state.goals.find((g) => g.id === id) : undefined
 }
 
 /** Why a task can't move yet, in plain words. */
@@ -83,22 +84,12 @@ export function nextTaskForProject(state: AppState, projectId: ID, today: ISODat
 }
 
 export function nextTaskForGoal(state: AppState, goalId: ID, today: ISODate): Task | null {
-  const projectIds = state.projects.filter((p) => p.goalId === goalId).map((p) => p.id)
-  return (
-    suggestable(state, today).find(
-      (r) => r.task.goalId === goalId || (r.task.projectId && projectIds.includes(r.task.projectId)),
-    )?.task ?? null
-  )
+  return suggestable(state, today).find((r) => goalIdOf(state, r.task) === goalId)?.task ?? null
 }
 
 export function blockedForGoal(state: AppState, goalId: ID): Task[] {
-  const projectIds = state.projects.filter((p) => p.goalId === goalId).map((p) => p.id)
   return state.tasks.filter(
-    (t) =>
-      t.status === 'open' &&
-      t.waitingOn &&
-      (t.goalId === goalId || (t.projectId && projectIds.includes(t.projectId))) &&
-      isBlocked(state, t),
+    (t) => t.status === 'open' && t.waitingOn && goalIdOf(state, t) === goalId && isBlocked(state, t),
   )
 }
 

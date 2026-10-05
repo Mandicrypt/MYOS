@@ -172,6 +172,7 @@ export function ReviewPage() {
                         }
                       >
                         {g.change > 0 ? `↑ ${g.change}%` : 'No change'}
+                        {g.completedThisWeek ? ' · Completed' : ''}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted">

@@ -1,4 +1,5 @@
 import type { AppState } from '@/types'
+import { repairReferences } from './repair'
 
 type Versioned = { id: string; updatedAt?: string; createdAt?: string }
 
@@ -51,7 +52,7 @@ function unionLog<T extends { id: string; at: string }>(local: T[], cloud: T[]):
 
 export function mergeStates(local: AppState, cloud: AppState, base: AppState | null): AppState {
   const settings = (local.settings.updatedAt ?? '') > (cloud.settings.updatedAt ?? '') ? local.settings : cloud.settings
-  return {
+  return repairReferences({
     ...local,
     goals: mergeList(local.goals, cloud.goals, base?.goals ?? null),
     projects: mergeList(local.projects, cloud.projects, base?.projects ?? null),
@@ -64,5 +65,5 @@ export function mergeStates(local: AppState, cloud: AppState, base: AppState | n
     workEvents: unionLog(local.workEvents, cloud.workEvents),
     events: unionLog(local.events, cloud.events),
     settings,
-  }
+  })
 }

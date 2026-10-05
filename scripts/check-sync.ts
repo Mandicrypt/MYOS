@@ -283,6 +283,29 @@ async function main() {
     `${repo.writes - writes} write(s)`,
   )
 
+  console.log('Hardening: a device deletes a task while another edits its note')
+  {
+    const taskId = newId()
+    const noteId = newId()
+    laptop.do({ type: 'task/add', id: taskId, task: { title: 'Deploy contract' } })
+    laptop.do({ type: 'note/add', id: noteId, title: 'Deploy notes', taskId })
+    await laptop.sync.flush()
+    await phone.sync.pull()
+    laptop.do({ type: 'task/delete', id: taskId })
+    await laptop.sync.flush()
+    await new Promise((r) => setTimeout(r, 5))
+    phone.do({ type: 'note/update', id: noteId, patch: { body: 'Edited offline' } })
+    await phone.sync.flush() // refused: the task is gone in the cloud
+    await phone.sync.pull()
+    const cloudNote = (await cloudNow()).notes.find((n) => n.id === noteId)
+    check('sync recovers instead of failing forever', phone.sync.status.state === 'synced')
+    check(
+      '…the note edit arrives, its dead link cleared',
+      cloudNote?.body === 'Edited offline' && cloudNote?.taskId === null,
+    )
+    check('…and the phone shows the same', phone.state.notes.find((n) => n.id === noteId)?.taskId === null)
+  }
+
   console.log('Phase 2: older saved data upgrades')
   const v2 = buildSampleState() as unknown as Record<string, unknown> & {
     tasks: { id: string; noteIds: string[] }[]

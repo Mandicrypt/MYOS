@@ -5,14 +5,14 @@
 import { buildSampleState } from '../src/data/sample'
 import { engine } from '../src/engine/importance'
 import { scoreCompletion } from '../src/engine/meaningful-work'
-import { goalProgress, goalProgressChange } from '../src/engine/goals'
+import { goalProgress, goalProgressChange, tasksForGoal } from '../src/engine/goals'
 import { isForToday, suggestable, suggestNext } from '../src/engine/next'
 import { selectWeekReview, weekStartOf } from '../src/store/review'
 import { countedCredits, netPoints } from '../src/engine/work-history'
 import { isBlocked } from '../src/engine/relations'
 import { addDays, todayISO } from '../src/lib/dates'
 import { reducer } from '../src/store/reducer'
-import { selectFocusTask, selectHome, selectReview } from '../src/store/selectors'
+import { goalFor, selectFocusTask, selectHome, selectReview } from '../src/store/selectors'
 import type { AppState } from '../src/types'
 
 let passed = 0
@@ -356,6 +356,99 @@ console.log('Phase 2: weekly review recommendations')
   check(
     'accepted item stays visible as planned',
     after.recommendations.some((r) => r.ranked.task.id === first && r.decision === 'accepted'),
+  )
+}
+
+console.log('Audit: goal lifecycle keeps relationships and history')
+{
+  let g = buildSampleState()
+  g = reducer(g, { type: 'task/complete', id: 't-ux' })
+  const work = g.workEvents.length
+  const links = () => ({
+    projects: g.projects.filter((p) => p.goalId === 'g-mvp').length,
+    tasks: tasksForGoal(g, 'g-mvp').length,
+    notes: g.notes.filter((n) => n.goalId === 'g-mvp').length,
+  })
+  const before = links()
+  const progress = goalProgress(g, 'g-mvp')
+  for (const status of ['paused', 'completed', 'archived', 'active'] as const) {
+    g = reducer(g, { type: 'goal/status', id: 'g-mvp', status })
+    const now = links()
+    check(
+      `→ ${status}: links and work history intact`,
+      JSON.stringify(now) === JSON.stringify(before) &&
+        g.workEvents.length === work &&
+        goalProgress(g, 'g-mvp').done === progress.done,
+    )
+  }
+  g = reducer(g, { type: 'goal/status', id: 'g-mvp', status: 'completed' })
+  const completedAt = g.goals.find((x) => x.id === 'g-mvp')!.completedAt
+  g = reducer(g, { type: 'goal/status', id: 'g-mvp', status: 'archived' })
+  check(
+    'archiving a completed goal keeps when it was completed',
+    g.goals.find((x) => x.id === 'g-mvp')!.completedAt === completedAt && completedAt !== null,
+  )
+  g = reducer(g, { type: 'goal/status', id: 'g-mvp', status: 'active' })
+  check(
+    'restoring clears archived and completed dates',
+    g.goals.find((x) => x.id === 'g-mvp')!.archivedAt === null &&
+      g.goals.find((x) => x.id === 'g-mvp')!.completedAt === null,
+  )
+}
+
+console.log('Audit: one rule for which goal a task serves')
+{
+  let g = buildSampleState()
+  // A task in a project (goal g-mvp) that is also linked straight to another goal.
+  g = reducer(g, { type: 'task/update', id: 't-ux', patch: { goalId: 'g-skills' } })
+  const t = g.tasks.find((x) => x.id === 't-ux')!
+  check('a direct goal link wins over the project’s goal', goalFor(g, t)?.id === 'g-skills')
+  const counted = g.goals.reduce((n, goal) => n + tasksForGoal(g, goal.id).filter((x) => x.id === 't-ux').length, 0)
+  check('…and the task is counted under exactly one goal', counted === 1)
+  g = reducer(g, { type: 'task/update', id: 't-ux', patch: { goalId: null } })
+  check(
+    'clearing it falls back to the project’s goal',
+    goalFor(
+      g,
+      g.tasks.find((x) => x.id === 't-ux')!,
+    )?.id === 'g-mvp',
+  )
+}
+
+console.log('Audit: weekly review over time')
+{
+  let r = buildSampleState()
+  const thisWeek = weekStartOf(today)
+  const lastWeek = addDays(thisWeek, -7)
+  const lastWeekDone = r.workEvents.filter((e) => e.at.slice(0, 10) >= lastWeek && e.at.slice(0, 10) < thisWeek).length
+  check(
+    'previous weeks can be reviewed',
+    selectWeekReview(r, lastWeek, today).summary.completed === lastWeekDone,
+    `${lastWeekDone} done last week`,
+  )
+  check('past weeks offer no recommendations', selectWeekReview(r, lastWeek, today).recommendations.length === 0)
+  r = reducer(r, { type: 'task/complete', id: 't-ux' })
+  r = reducer(r, { type: 'goal/status', id: 'g-mvp', status: 'completed' })
+  const done = selectWeekReview(r, thisWeek, today).goals.find((x) => x.goal.id === 'g-mvp')
+  check(
+    'a goal completed this week still shows, marked completed',
+    done?.completedThisWeek === true && done.tasksCompleted === 1,
+  )
+  r = reducer(r, { type: 'task/delete', id: 't-ux' })
+  const afterDelete = selectWeekReview(r, thisWeek, today)
+  check(
+    'deleted work still counts in its week',
+    afterDelete.summary.completed === 1 &&
+      afterDelete.completed.some((c) => c.items.some((i) => i.title === 'Review dashboard UX')),
+  )
+  let n = buildSampleState()
+  n = reducer(n, { type: 'project/add', id: 'fresh', title: 'Brand new project' })
+  n = reducer(n, { type: 'task/add', task: { title: 'First step', projectId: 'fresh' } })
+  n = reducer(n, { type: 'goal/add', id: 'fresh-goal', title: 'Brand new goal' })
+  const flagged = selectWeekReview(n, thisWeek, today).attention.map((a) => a.key)
+  check(
+    'brand-new projects and goals are not flagged as stalled',
+    !flagged.includes('project-fresh') && !flagged.includes('goal-fresh-goal'),
   )
 }
 
