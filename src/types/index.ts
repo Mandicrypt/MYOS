@@ -64,6 +64,8 @@ export type Task = {
   /** If this task was split out of a bigger one. Reserved for anti-gaming later. */
   parentId: ID | null
   createdAt: ISODateTime
+  /** Set automatically whenever the task changes. Latest wins during sync. */
+  updatedAt?: ISODateTime
   completedAt: ISODateTime | null
 }
 
@@ -77,6 +79,7 @@ export type Project = {
   status: ProjectStatus
   deadline: ISODate | null
   createdAt: ISODateTime
+  updatedAt?: ISODateTime
 }
 
 export type Milestone = {
@@ -85,6 +88,8 @@ export type Milestone = {
   title: string
   dueOn: ISODate | null
   done: boolean
+  createdAt?: ISODateTime
+  updatedAt?: ISODateTime
 }
 
 export type GoalStatus = 'active' | 'paused' | 'achieved'
@@ -95,15 +100,17 @@ export type Goal = {
   why: string
   status: GoalStatus
   createdAt: ISODateTime
+  updatedAt?: ISODateTime
 }
 
-export type InboxItem = { id: ID; text: string; createdAt: ISODateTime }
+export type InboxItem = { id: ID; text: string; createdAt: ISODateTime; updatedAt?: ISODateTime }
 
 export type Note = {
   id: ID
   title: string
   body: string
   projectId: ID | null
+  createdAt?: ISODateTime
   updatedAt: ISODateTime
 }
 
@@ -136,7 +143,8 @@ export type WorkEvent = {
   kind?: 'credit' | 'reversal'
   /** For a reversal: the credit it cancels. */
   reverses?: ID
-  reason?: 'reopened'
+  /** Why a reversal or re-credit was added. */
+  reason?: 'reopened' | 'undone'
   /** Snapshots taken when the event was recorded, so history reads correctly after edits or deletion. */
   taskTitle?: string
   impact?: Level
@@ -190,6 +198,7 @@ export type Settings = {
   name: string
   showMeaningfulWork: boolean
   theme: ThemeChoice
+  updatedAt?: ISODateTime
 }
 
 export type AppState = {

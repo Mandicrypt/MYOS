@@ -16,39 +16,42 @@ import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ReviewPage } from '@/pages/ReviewPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
-import { StoreProvider } from '@/store/store'
+import { AuthGate } from '@/account/AuthGate'
+import { AuthProvider } from '@/auth/AuthProvider'
 import { UiProvider } from './ui-context'
 
 // HashRouter keeps every link working on any static host, with no server setup.
 export function App() {
   return (
-    <StoreProvider>
-      <ToastProvider>
-        <HashRouter>
-          <UiProvider>
-            <Routes>
-              <Route path="/focus" element={<FocusPage />} />
-              <Route path="/focus/:taskId" element={<FocusPage />} />
-              <Route element={<AppShell />}>
-                <Route index element={<HomePage />} />
-                <Route path="inbox" element={<InboxPage />} />
-                <Route path="tasks" element={<TasksPage />} />
-                <Route path="projects" element={<ProjectsPage />} />
-                <Route path="projects/:projectId" element={<ProjectDetailPage />} />
-                <Route path="goals" element={<GoalsPage />} />
-                <Route path="notes" element={<NotesPage />} />
-                <Route path="notes/:noteId" element={<NoteEditorPage />} />
-                <Route path="review" element={<ReviewPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Route>
-            </Routes>
-            <TaskEditor />
-            <WaitingDialog />
-            <QuickAdd />
-          </UiProvider>
-        </HashRouter>
-      </ToastProvider>
-    </StoreProvider>
+    <AuthProvider>
+      <AuthGate>
+        <ToastProvider>
+          <HashRouter>
+            <UiProvider>
+              <Routes>
+                <Route path="/focus" element={<FocusPage />} />
+                <Route path="/focus/:taskId" element={<FocusPage />} />
+                <Route element={<AppShell />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="inbox" element={<InboxPage />} />
+                  <Route path="tasks" element={<TasksPage />} />
+                  <Route path="projects" element={<ProjectsPage />} />
+                  <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+                  <Route path="goals" element={<GoalsPage />} />
+                  <Route path="notes" element={<NotesPage />} />
+                  <Route path="notes/:noteId" element={<NoteEditorPage />} />
+                  <Route path="review" element={<ReviewPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Routes>
+              <TaskEditor />
+              <WaitingDialog />
+              <QuickAdd />
+            </UiProvider>
+          </HashRouter>
+        </ToastProvider>
+      </AuthGate>
+    </AuthProvider>
   )
 }

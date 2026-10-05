@@ -11,6 +11,11 @@ export function resolvedTheme(choice: ThemeChoice): 'light' | 'dark' {
 /** Puts the chosen theme on the page and tints the phone's browser bar to match. */
 export function applyTheme(choice: ThemeChoice): void {
   document.documentElement.dataset.theme = choice
+  try {
+    localStorage.setItem('myos:theme', choice)
+  } catch {
+    // Not important if this can't be saved.
+  }
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
 }

@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { SyncNotice } from '@/account/SyncNotice'
 import { MobileNavigation } from '@/components/navigation/MobileNavigation'
 import { Sidebar } from '@/components/navigation/Sidebar'
 
@@ -22,6 +23,9 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+      <div className="pointer-events-none fixed inset-x-0 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 flex justify-center px-4 md:left-60">
+        <SyncNotice className="pointer-events-auto rounded-lg border border-line bg-surface px-3 py-2" />
+      </div>
       <MobileNavigation />
     </div>
   )

@@ -8,6 +8,9 @@ import { useToast } from '@/components/ui/Toast'
 import { buildSampleState } from '@/data/sample'
 import { useStore } from '@/store/store'
 import type { AppState, ThemeChoice } from '@/types'
+import { useAccount } from '@/account/account-context'
+import { syncLabel } from '@/account/sync-label'
+import { shortAddress } from '@/auth/wallet/errors'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
@@ -15,6 +18,17 @@ export function SettingsPage() {
   const { state, dispatch } = useStore()
   const toast = useToast()
   const [confirm, setConfirm] = useState<null | 'sample' | 'empty'>(null)
+  const account = useAccount()
+  const [signingOut, setSigningOut] = useState(false)
+  const [unsynced, setUnsynced] = useState(false)
+
+  const signOut = async (force = false) => {
+    if (account.mode !== 'account') return
+    setSigningOut(true)
+    const result = await account.signOut({ force })
+    setSigningOut(false)
+    if (result === 'unsynced') setUnsynced(true)
+  }
 
   const replace = (next: AppState, message: string) => {
     dispatch({ type: 'state/replace', state: next })
@@ -89,16 +103,59 @@ export function SettingsPage() {
           </p>
         </Section>
 
-        <Section title="Your data">
-          <p className="text-base text-muted">
-            Everything is saved in this browser only. Accounts and sync come in a later phase.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => setConfirm('sample')}>Restore sample data</Button>
-            <Button onClick={() => setConfirm('empty')}>Start with a clean slate</Button>
-          </div>
-        </Section>
+        {account.mode === 'account' ? (
+          <Section title="Account">
+            {account.email ? <p className="text-base">{account.email}</p> : null}
+            {account.wallet ? (
+              <p className="text-base" title={account.wallet}>
+                {account.email ? <span className="text-muted">Wallet </span> : 'Signed in with wallet '}
+                {shortAddress(account.wallet)}
+              </p>
+            ) : null}
+            <p className="mt-1 text-sm text-muted" role="status">
+              {syncLabel(account.sync.state, account.sync.lastSyncedAt)}
+            </p>
+            <p className="mt-3 text-base text-muted">
+              Your data is saved to your account and on this device, so it’s there on every device you sign in to.
+            </p>
+            <Button className="mt-4" onClick={() => signOut()} disabled={signingOut}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Button>
+          </Section>
+        ) : (
+          <Section title="Your data">
+            <p className="text-base text-muted">Everything is saved in this browser only.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => setConfirm('sample')}>Restore sample data</Button>
+              <Button onClick={() => setConfirm('empty')}>Start with a clean slate</Button>
+            </div>
+          </Section>
+        )}
       </div>
+
+      <Modal
+        open={unsynced}
+        onOpenChange={setUnsynced}
+        title="Some changes haven’t synced yet"
+        description="Confirm signing out with unsynced changes"
+      >
+        <p className="text-base text-muted">
+          If you sign out now, changes made on this device since the last sync will be lost. Reconnect and try again to
+          keep them.
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button onClick={() => setUnsynced(false)}>Stay signed in</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setUnsynced(false)
+              void signOut(true)
+            }}
+          >
+            Sign out anyway
+          </Button>
+        </div>
+      </Modal>
 
       <Modal
         open={confirm !== null}

@@ -24,3 +24,37 @@ export function activeCreditFor(events: WorkEvent[], taskId: string): WorkEvent 
 export function netPoints(events: WorkEvent[]): number {
   return events.reduce((sum, e) => sum + e.points, 0)
 }
+
+/**
+ * After the user undoes an action, the task states may no longer match the
+ * work log. Instead of removing history, add entries so they match again:
+ * a reversal for a credit whose task is open, or a fresh credit for a task
+ * that is done again.
+ */
+export function reconcileWorkLog(
+  tasks: { id: string; status: 'open' | 'done' }[],
+  log: WorkEvent[],
+  makeId: () => string,
+  at: string,
+): WorkEvent[] {
+  const additions: WorkEvent[] = []
+  for (const task of tasks) {
+    const active = activeCreditFor(log, task.id)
+    if (task.status === 'open' && active) {
+      additions.push({
+        ...active,
+        id: makeId(),
+        kind: 'reversal',
+        reverses: active.id,
+        reason: 'undone',
+        points: -active.points,
+        at,
+      })
+    }
+    if (task.status === 'done' && !active) {
+      const last = log.filter((e) => e.taskId === task.id && (e.kind ?? 'credit') === 'credit').at(-1)
+      if (last) additions.push({ ...last, id: makeId(), kind: 'credit', reverses: undefined, reason: 'undone', at })
+    }
+  }
+  return additions
+}
