@@ -1,4 +1,5 @@
 import { scoreCompletion, SCORING_VERSION } from '@/engine/meaningful-work'
+import { activeCreditFor } from '@/engine/work-history'
 import { goalOf, isBlocked, newlyUnblockedBy, wouldCreateCycle } from '@/engine/relations'
 import { daysBetween, todayISO } from '@/lib/dates'
 import { newId } from '@/lib/id'
@@ -131,8 +132,11 @@ export function reducer(state: AppState, action: Action): AppState {
           {
             id: newId(),
             taskId: task.id,
+            kind: 'credit',
             points,
             at: at.toISOString(),
+            taskTitle: task.title,
+            impact: task.signals.impact,
             breakdown,
             projectId: task.projectId,
             goalId: goalOf(state, task)?.id ?? null,
@@ -156,16 +160,36 @@ export function reducer(state: AppState, action: Action): AppState {
       return next
     }
 
-    case 'task/reopen':
-      return record(
-        {
-          ...updateTask(state, action.id, (t) => ({ ...t, status: 'open', completedAt: null })),
-          workEvents: state.workEvents.filter((e) => e.taskId !== action.id),
-        },
-        'task.reopened',
-        action.id,
-        meta(action),
-      )
+    case 'task/reopen': {
+      const task = state.tasks.find((t) => t.id === action.id)
+      if (!task || task.status === 'open') return state
+      // History is append-only: cancel the completion's credit with a reversal, never delete it.
+      const credit = activeCreditFor(state.workEvents, task.id)
+      const reopened = updateTask(state, action.id, (t) => ({ ...t, status: 'open', completedAt: null }))
+      const next = credit
+        ? {
+            ...reopened,
+            workEvents: [
+              ...reopened.workEvents,
+              {
+                id: newId(),
+                taskId: task.id,
+                kind: 'reversal' as const,
+                reverses: credit.id,
+                reason: 'reopened' as const,
+                points: -credit.points,
+                at: now(),
+                taskTitle: task.title,
+                impact: task.signals.impact,
+                projectId: credit.projectId,
+                goalId: credit.goalId,
+                scoringVersion: credit.scoringVersion,
+              },
+            ],
+          }
+        : reopened
+      return record(next, 'task.reopened', action.id, { ...meta(action), data: { reversedCredit: credit?.id ?? null } })
+    }
 
     case 'task/plan':
     case 'task/skip': {
@@ -241,21 +265,28 @@ export function reducer(state: AppState, action: Action): AppState {
         checklist: t.checklist.map((c) => (c.id === action.itemId ? { ...c, done: !c.done } : c)),
       }))
 
-    case 'task/delete':
-      return record(
-        {
-          ...state,
-          tasks: state.tasks
-            .filter((t) => t.id !== action.id)
-            .map((t) =>
-              t.dependsOn.includes(action.id) ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== action.id) } : t,
-            ),
-          workEvents: state.workEvents.filter((e) => e.taskId !== action.id),
-        },
-        'task.deleted',
-        action.id,
-        meta(action),
-      )
+    case 'task/delete': {
+      const task = state.tasks.find((t) => t.id === action.id)
+      if (!task) return state
+      const dependents = state.tasks.filter((t) => t.dependsOn.includes(action.id))
+      let next: AppState = {
+        ...state,
+        tasks: state.tasks
+          .filter((t) => t.id !== action.id)
+          .map((t) =>
+            t.dependsOn.includes(action.id) ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== action.id) } : t,
+          ),
+        // Work history and earlier user events stay: the work happened even if the task is gone.
+      }
+      next = record(next, 'task.deleted', action.id, {
+        ...meta(action),
+        data: { title: task.title, status: task.status, projectId: task.projectId },
+      })
+      for (const d of dependents) {
+        next = record(next, 'task.dependency_removed', d.id, { data: { on: action.id, because: 'deleted' } })
+      }
+      return next
+    }
 
     case 'inbox/add':
       return { ...state, inbox: [{ id: newId(), text: action.text, createdAt: now() }, ...state.inbox] }

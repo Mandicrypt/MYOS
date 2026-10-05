@@ -1,5 +1,6 @@
 import type { AppState, Task, WorkBreakdown } from '@/types'
 import { allDependents, goalOf, projectOf } from './relations'
+import { countedCredits } from './work-history'
 
 export const SCORING_VERSION = 2
 
@@ -42,10 +43,10 @@ export function scoreCompletion(
   // Trivial work done in bulk on the same day is worth less each time.
   const trivial = task.signals.impact <= 2
   const day = at.toISOString().slice(0, 10)
-  const trivialToday = state.workEvents.filter((e) => {
+  const trivialToday = countedCredits(state.workEvents).filter((e) => {
     if (e.at.slice(0, 10) !== day) return false
-    const t = state.tasks.find((x) => x.id === e.taskId)
-    return t ? t.signals.impact <= 2 : false
+    const impact = e.impact ?? state.tasks.find((x) => x.id === e.taskId)?.signals.impact
+    return impact !== undefined && impact <= 2
   }).length
   const repetition = !trivial ? 1 : trivialToday < 3 ? 1 : trivialToday < 6 ? 0.5 : 0.25
 

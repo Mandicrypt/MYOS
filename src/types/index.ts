@@ -119,13 +119,27 @@ export type WorkBreakdown = {
 
 /**
  * Foundation for the future Meaningful Work Score.
- * One event per completed task, scored by how much it mattered, not by count.
+ *
+ * Append-only. A completion adds a "credit". If the task is reopened, a
+ * "reversal" is added that cancels that credit; the credit itself is never
+ * edited or removed. Deleting a task leaves its history in place. Totals are
+ * worked out from the log (see engine/work-history.ts).
  */
 export type WorkEvent = {
   id: ID
+  /** May point to a task that no longer exists. */
   taskId: ID
+  /** Negative for a reversal. */
   points: number
   at: ISODateTime
+  /** Missing on events saved before history became append-only; treat as "credit". */
+  kind?: 'credit' | 'reversal'
+  /** For a reversal: the credit it cancels. */
+  reverses?: ID
+  reason?: 'reopened'
+  /** Snapshots taken when the event was recorded, so history reads correctly after edits or deletion. */
+  taskTitle?: string
+  impact?: Level
   /** Missing on events recorded before scoring v2. */
   breakdown?: WorkBreakdown
   projectId?: ID | null

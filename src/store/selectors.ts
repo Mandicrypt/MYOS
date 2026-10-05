@@ -1,6 +1,7 @@
 import { engine } from '@/engine/importance'
 import { isForToday, suggestable } from '@/engine/next'
 import { isBlocked } from '@/engine/relations'
+import { countedCredits } from '@/engine/work-history'
 import type { EngineContext, RankedTask } from '@/engine/types'
 import { addDays, daysBetween } from '@/lib/dates'
 import type { AppState, Goal, ID, ISODate, Project, Task } from '@/types'
@@ -104,22 +105,24 @@ export function blockedForGoal(state: AppState, goalId: ID): Task[] {
 export type ProgressLevel = 'Major progress' | 'Good progress' | 'Some progress' | 'Small progress'
 
 export type ReviewView = {
-  moved: { label: string; projectId: ID | null; level: ProgressLevel; finished: Task[] }[]
+  moved: { label: string; projectId: ID | null; level: ProgressLevel; finished: { id: ID; title: string }[] }[]
   stuck: { task: Task; reason: string; suggestion: string }[]
   quiet: Project[]
 }
 
 export function selectReview(state: AppState, today: ISODate): ReviewView {
   const since = addDays(today, -6)
-  const recent = state.workEvents.filter((e) => e.at.slice(0, 10) >= since)
-  const byProject = new Map<string, { points: number; tasks: Task[] }>()
+  // Completions that still count. Deleted tasks are included: the work still happened.
+  const recent = countedCredits(state.workEvents).filter((e) => e.at.slice(0, 10) >= since)
+  const byProject = new Map<string, { points: number; tasks: { id: ID; title: string }[] }>()
   for (const e of recent) {
     const task = state.tasks.find((t) => t.id === e.taskId)
-    if (!task) continue
-    const key = task.projectId ?? 'personal'
+    const title = task?.title ?? e.taskTitle
+    if (!title) continue
+    const key = (e.projectId !== undefined ? e.projectId : task?.projectId) ?? 'personal'
     const entry = byProject.get(key) ?? { points: 0, tasks: [] }
     entry.points += e.points
-    entry.tasks.push(task)
+    entry.tasks.push({ id: e.taskId, title })
     byProject.set(key, entry)
   }
   const level = (p: number): ProgressLevel =>

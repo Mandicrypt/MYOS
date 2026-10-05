@@ -20,16 +20,23 @@ export function isForToday(task: Task, today: ISODate): boolean {
   return Boolean(task.dueOn && task.dueOn <= today)
 }
 
-/** The user has pushed this to a later day. */
-function deferred(task: Task, today: ISODate): boolean {
+/**
+ * The user has planned this for a later day. Their plan wins over urgency:
+ * a deferred task is never suggested until its planned day arrives.
+ */
+export function isDeferred(task: Task, today: ISODate): boolean {
   return Boolean(task.plannedFor && task.plannedFor > today)
 }
 
-/** Ranked, actionable tasks MYOS is allowed to suggest. */
+/**
+ * Ranked tasks MYOS is allowed to suggest: open, actionable, not switched off
+ * by the user, and not planned for a later day. Every suggestion surface
+ * (Home, Focus, "what makes sense now") goes through here.
+ */
 export function suggestable(state: AppState, today: ISODate): RankedTask[] {
   return engine
     .rank(
-      state.tasks.filter((t) => t.status === 'open'),
+      state.tasks.filter((t) => t.status === 'open' && !isDeferred(t, today)),
       { state, today },
     )
     .filter((r) => !r.blocked && !r.suppressed)
@@ -49,8 +56,8 @@ export function suggestNext(
   const candidates = suggestable(state, today).filter(
     (r) =>
       isForToday(r.task, today) ||
-      (!deferred(r.task, today) &&
-        (unblockedIds.includes(r.task.id) || (r.task.dueOn && daysBetween(today, r.task.dueOn) <= 1))),
+      unblockedIds.includes(r.task.id) ||
+      (r.task.dueOn && daysBetween(today, r.task.dueOn) <= 1),
   )
   const pool = candidates.length ? candidates : suggestable(state, today)
   if (!pool.length) return null

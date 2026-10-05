@@ -1,5 +1,6 @@
 import { daysBetween, friendlyDay } from '@/lib/dates'
 import type { Task } from '@/types'
+import { countedCredits } from './work-history'
 import { allDependents, directDependents, goalOf, isBlocked, milestoneOf, projectOf } from './relations'
 import type { EngineContext, PriorityEngine, RankedTask, Reason } from './types'
 
@@ -38,6 +39,17 @@ function consequence(task: Task): Reason[] {
 /** Deadlines on the task, or inherited from its milestone or project. */
 function urgency(task: Task, ctx: EngineContext): Reason[] {
   const { state, today } = ctx
+  // The user planned this for a later day. Respect that over the deadline's pull.
+  if (task.plannedFor && task.plannedFor > today) {
+    if (task.dueOn && task.dueOn <= task.plannedFor)
+      return reason(
+        'due-but-planned',
+        2,
+        null,
+        `It was due ${friendlyDay(task.dueOn, today)}; you planned it for ${friendlyDay(task.plannedFor, today)}.`,
+      )
+    return NONE
+  }
   if (task.dueOn) {
     const days = daysBetween(today, task.dueOn)
     if (days < 0) return reason('overdue', 15, 'Overdue', `It was due ${friendlyDay(task.dueOn, today)}.`)
@@ -143,7 +155,7 @@ function postponed(task: Task): Reason[] {
 function momentum(task: Task, ctx: EngineContext): Reason[] {
   const project = projectOf(ctx.state, task)
   if (!project) return NONE
-  const recent = ctx.state.workEvents.some(
+  const recent = countedCredits(ctx.state.workEvents).some(
     (e) => e.projectId === project.id && daysBetween(e.at.slice(0, 10), ctx.today) <= 2,
   )
   return recent
