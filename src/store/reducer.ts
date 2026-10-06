@@ -62,6 +62,12 @@ export type Action =
   | { type: 'goal/add'; id?: ID; title: string; why?: string; importance?: GoalImportance; targetDate?: ISODate | null }
   | { type: 'goal/update'; id: ID; patch: Partial<Pick<Goal, 'title' | 'why' | 'importance' | 'targetDate'>> }
   | { type: 'goal/status'; id: ID; status: GoalStatus }
+  /** Daily Plan: accept (plans it for today) or turn down a suggestion. */
+  | ({ type: 'plan/decide'; id: ID; accepted: boolean; today: ISODate } & Meta)
+  /** A timed Focus session ended. Recorded for history and activity. */
+  | { type: 'focus/session'; id: ID; minutes: number }
+  /** The user finished their Weekly Review for the week starting `week` (a Monday). */
+  | { type: 'review/complete'; week: ISODate }
   /** Weekly Review: the user accepts (and plans) or turns down a recommended task. */
   | ({ type: 'recommendation/decide'; id: ID; accepted: boolean; plannedFor?: ISODate } & Meta)
   | { type: 'settings/update'; patch: Partial<Settings> }
@@ -419,6 +425,26 @@ export function reducer(state: AppState, action: Action): AppState {
             : g,
         ),
       }
+    case 'plan/decide': {
+      const task = state.tasks.find((t) => t.id === action.id)
+      if (!task) return state
+      const planned =
+        action.accepted && !(task.plannedFor && task.plannedFor <= action.today)
+          ? plan(state, task, action.today, action)
+          : state
+      return record(planned, action.accepted ? 'plan.accepted' : 'plan.rejected', action.id, meta(action))
+    }
+    case 'focus/session': {
+      if (!state.tasks.some((t) => t.id === action.id) || action.minutes < 1) return state
+      return record(state, 'focus.session', action.id, {
+        source: 'focus',
+        data: { minutes: Math.round(action.minutes) },
+      })
+    }
+    case 'review/complete': {
+      const done = state.events.some((e) => e.type === 'review.completed' && e.data?.week === action.week)
+      return done ? state : record(state, 'review.completed', null, { source: 'review', data: { week: action.week } })
+    }
     case 'recommendation/decide': {
       const task = state.tasks.find((t) => t.id === action.id)
       if (!task) return state

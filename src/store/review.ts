@@ -84,7 +84,8 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
   // --- Tasks added this week (including ones deleted since).
   const createdIds = new Set<ID>()
   for (const t of state.tasks) if (t.createdAt >= from && t.createdAt < to) createdIds.add(t.id)
-  for (const e of state.events) if (e.type === 'task.created' && e.at >= from && e.at < to) createdIds.add(e.taskId)
+  for (const e of state.events)
+    if (e.type === 'task.created' && e.taskId && e.at >= from && e.at < to) createdIds.add(e.taskId)
 
   // --- Goals: did they move?
   const activeGoals = state.goals.filter((g) => g.status === 'active')
@@ -167,7 +168,7 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
     const weekFrom = startOfDayIso(weekStartOf(today))
     const decisions = new Map<ID, 'accepted' | 'rejected'>()
     for (const e of state.events) {
-      if (e.at < weekFrom) continue
+      if (e.at < weekFrom || !e.taskId) continue
       if (e.type === 'recommendation.accepted') decisions.set(e.taskId, 'accepted')
       if (e.type === 'recommendation.rejected') decisions.set(e.taskId, 'rejected')
     }

@@ -7,7 +7,7 @@ const MAX_EVENTS = 3000
 export function record(
   state: AppState,
   type: UserEventType,
-  taskId: ID,
+  taskId: ID | null,
   extra: { source?: ActionSource; wasSuggested?: boolean; data?: UserEvent['data'] } = {},
 ): AppState {
   const event: UserEvent = { id: newId(), type, taskId, at: new Date().toISOString(), ...extra }

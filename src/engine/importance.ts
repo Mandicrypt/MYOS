@@ -96,9 +96,7 @@ function alignment(task: Task, ctx: EngineContext): Reason[] {
 
   // Phase 2: the goal's own importance and target date add context.
   if (goal.importance === 'high')
-    reasons.push(
-      ...reason('goal-important', 3, `Serves an important goal`, `${goal.title} is one of your important goals.`),
-    )
+    reasons.push(...reason('goal-important', 3, `High-impact goal`, `${goal.title} is one of your important goals.`))
   if (goal.importance === 'low') reasons.push(...reason('goal-low', -1, null, null))
   if (goal.targetDate) {
     const days = daysBetween(ctx.today, goal.targetDate)
@@ -143,7 +141,7 @@ function unblocking(task: Task, ctx: EngineContext): Reason[] {
   return reason(
     'unblocks',
     weight,
-    `Blocking ${plural(all.length, 'task')}`,
+    `Unlocks ${plural(all.length, 'other task')}`,
     `${plural(all.length, 'other task')} can't start until this is done.`,
   )
 }
@@ -161,12 +159,37 @@ function postponed(task: Task): Reason[] {
   return reason(
     'postponed',
     w,
-    `Put off ${task.postponeCount} times`,
+    `Postponed ${task.postponeCount} times`,
     `You've moved it ${task.postponeCount} times. A small first step might help.`,
   )
 }
 
 /** Keep a project moving if it was worked on recently. */
+/** Days a project can go without completed work before MYOS calls it stalled. */
+export const STALL_DAYS = 14
+
+/**
+ * A project that used to move but has gone quiet. Its best next task gets a
+ * nudge so the project doesn't silently die. Brand-new projects don't count.
+ */
+function stalledProject(task: Task, ctx: EngineContext): Reason[] {
+  const project = projectOf(ctx.state, task)
+  if (!project || project.status !== 'active') return NONE
+  if (daysBetween(project.createdAt.slice(0, 10), ctx.today) < STALL_DAYS) return NONE
+  const lastWork = countedCredits(ctx.state.workEvents)
+    .filter((e) => e.projectId === project.id)
+    .reduce<string | null>((latest, e) => (!latest || e.at > latest ? e.at : latest), null)
+  if (lastWork && daysBetween(lastWork.slice(0, 10), ctx.today) < STALL_DAYS) return NONE
+  return reason('stalled', 2.5, 'Project has stalled', `${project.title} hasn't moved in over ${STALL_DAYS} days.`)
+}
+
+/** Open for a long time. A small, capped nudge so old work surfaces now and then. */
+function age(task: Task, ctx: EngineContext): Reason[] {
+  const days = daysBetween(task.createdAt.slice(0, 10), ctx.today)
+  if (days < 21) return NONE
+  return reason('age', Math.min(2, days / 30), null, `It has been open for ${days} days.`)
+}
+
 function momentum(task: Task, ctx: EngineContext): Reason[] {
   const project = projectOf(ctx.state, task)
   if (!project) return NONE
@@ -192,6 +215,8 @@ function effort(task: Task): Reason[] {
 }
 
 const FACTORS = [
+  stalledProject,
+  age,
   impact,
   consequence,
   urgency,
@@ -208,7 +233,7 @@ const FACTORS = [
 const OVERLAPS: string[][] = [
   ['user-high', 'impact'],
   ['overdue', 'due', 'milestone'],
-  ['goal', 'momentum'],
+  ['goal', 'momentum', 'stalled'],
   ['goal-important', 'user-high', 'impact'],
   ['goal-target', 'overdue', 'due', 'milestone'],
 ]

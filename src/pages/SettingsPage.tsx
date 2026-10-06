@@ -77,6 +77,23 @@ export function SettingsPage() {
           />
         </Section>
 
+        <Section title="Daily plan">
+          <Field label="Focused time on a typical day" className="max-w-xs">
+            <select
+              className={inputClass}
+              value={state.settings.dailyMinutes}
+              onChange={(e) => dispatch({ type: 'settings/update', patch: { dailyMinutes: Number(e.target.value) } })}
+            >
+              {[60, 120, 180, 240, 300, 360, 480].map((m) => (
+                <option key={m} value={m}>
+                  {m / 60} hour{m === 60 ? '' : 's'}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="mt-2 text-sm text-muted">Today’s plan fits suggestions into this much time.</p>
+        </Section>
+
         <Section title="Finishing tasks">
           <label className="flex items-start gap-3 text-base">
             <input

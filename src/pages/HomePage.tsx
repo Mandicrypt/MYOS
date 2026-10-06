@@ -24,6 +24,12 @@ export function HomePage() {
         <p className="mt-1.5 text-md text-muted">
           {focus ? "Here's what matters today." : 'Nothing is asking for your attention today.'}
         </p>
+        <Link
+          to="/plan"
+          className="mt-3 inline-block rounded-md text-base text-accent-ink underline-offset-4 hover:underline"
+        >
+          Plan your day
+        </Link>
       </header>
 
       {focus ? (

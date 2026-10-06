@@ -1,4 +1,5 @@
 import {
+  Award,
   CalendarCheck,
   CircleDot,
   FileText,
@@ -21,6 +22,7 @@ export const mainNav: NavItem[] = [
   { label: 'Projects', to: '/projects', icon: Folder },
   { label: 'Goals', to: '/goals', icon: Flag },
   { label: 'Notes', to: '/notes', icon: FileText },
+  { label: 'Rewards', to: '/rewards', icon: Award },
   { label: 'Weekly Review', to: '/review', icon: CalendarCheck },
 ]
 

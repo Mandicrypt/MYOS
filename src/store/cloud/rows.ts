@@ -211,6 +211,7 @@ export const rowToWorkEvent = (r: Row): WorkEvent => ({
   projectId: strOrNull(r.project_id),
   goalId: strOrNull(r.goal_id),
   scoringVersion: r.scoring_version == null ? undefined : Number(r.scoring_version),
+  receivedAt: r.created_at == null ? undefined : ts(r.created_at),
 })
 
 export const userEventToRow = (e: UserEvent, userId: string): Row => ({
@@ -237,12 +238,14 @@ export const settingsToRow = (s: Settings, userId: string, fallbackTime: string)
   user_id: userId,
   name: s.name,
   show_meaningful_work: s.showMeaningfulWork,
+  daily_minutes: s.dailyMinutes,
   theme: s.theme,
   updated_at: s.updatedAt ?? fallbackTime,
 })
 export const rowToSettings = (r: Row): Settings => ({
   name: str(r.name),
   showMeaningfulWork: Boolean(r.show_meaningful_work),
+  dailyMinutes: r.daily_minutes == null ? 240 : Number(r.daily_minutes),
   theme: r.theme as Settings['theme'],
   updatedAt: ts(r.updated_at),
 })
@@ -290,6 +293,6 @@ export function rowsToState(rows: TableRows, version: number): AppState {
     events: rows.user_events.map(rowToUserEvent).sort(byAt),
     settings: rows.settings[0]
       ? rowToSettings(rows.settings[0])
-      : { name: '', showMeaningfulWork: true, theme: 'system' },
+      : { name: '', showMeaningfulWork: true, theme: 'system', dailyMinutes: 240 },
   }
 }

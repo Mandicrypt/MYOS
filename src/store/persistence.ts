@@ -62,7 +62,11 @@ export function migrateSaved(saved: Saved): AppState | null {
       }
     }),
     events: saved.events ?? [],
-    settings: { ...saved.settings, theme: saved.settings.theme ?? 'system' },
+    settings: {
+      ...saved.settings,
+      theme: saved.settings.theme ?? 'system',
+      dailyMinutes: saved.settings.dailyMinutes ?? 240,
+    },
   }
 }
 
@@ -115,7 +119,7 @@ export function emptyState(name = ''): AppState {
     notes: [],
     workEvents: [],
     events: [],
-    settings: { name, showMeaningfulWork: true, theme: 'system' },
+    settings: { name, showMeaningfulWork: true, theme: 'system', dailyMinutes: 240 },
   }
 }
 

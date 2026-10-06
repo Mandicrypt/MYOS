@@ -6,11 +6,12 @@ import { buildSampleState } from '../src/data/sample'
 import { engine } from '../src/engine/importance'
 import { scoreCompletion } from '../src/engine/meaningful-work'
 import { goalProgress, goalProgressChange, tasksForGoal } from '../src/engine/goals'
+import { planDay } from '../src/engine/daily-plan'
 import { isForToday, suggestable, suggestNext } from '../src/engine/next'
 import { selectWeekReview, weekStartOf } from '../src/store/review'
 import { countedCredits, netPoints } from '../src/engine/work-history'
 import { isBlocked } from '../src/engine/relations'
-import { addDays, todayISO } from '../src/lib/dates'
+import { addDays, todayISO, toISODate } from '../src/lib/dates'
 import { reducer } from '../src/store/reducer'
 import { goalFor, selectFocusTask, selectHome, selectReview } from '../src/store/selectors'
 import type { AppState } from '../src/types'
@@ -51,8 +52,8 @@ check(
 
 console.log('Dependencies')
 check(
-  'blueprint explains it is blocking 2 tasks',
-  get(s, 't-blueprint').why.some((r) => r.short === 'Blocking 2 tasks'),
+  'blueprint explains it unlocks 2 other tasks',
+  get(s, 't-blueprint').why.some((r) => r.short === 'Unlocks 2 other tasks'),
 )
 check('task model is blocked', get(s, 't-model').blocked)
 
@@ -420,25 +421,29 @@ console.log('Audit: weekly review over time')
   let r = buildSampleState()
   const thisWeek = weekStartOf(today)
   const lastWeek = addDays(thisWeek, -7)
-  const lastWeekDone = r.workEvents.filter((e) => e.at.slice(0, 10) >= lastWeek && e.at.slice(0, 10) < thisWeek).length
+  // The review uses the person's local weeks, so count with local dates too.
+  const localDate = (iso: string) => toISODate(new Date(iso))
+  const lastWeekDone = r.workEvents.filter((e) => localDate(e.at) >= lastWeek && localDate(e.at) < thisWeek).length
   check(
     'previous weeks can be reviewed',
     selectWeekReview(r, lastWeek, today).summary.completed === lastWeekDone,
     `${lastWeekDone} done last week`,
   )
   check('past weeks offer no recommendations', selectWeekReview(r, lastWeek, today).recommendations.length === 0)
+  const before = selectWeekReview(r, thisWeek, today).goals.find((x) => x.goal.id === 'g-mvp')?.tasksCompleted ?? 0
   r = reducer(r, { type: 'task/complete', id: 't-ux' })
   r = reducer(r, { type: 'goal/status', id: 'g-mvp', status: 'completed' })
   const done = selectWeekReview(r, thisWeek, today).goals.find((x) => x.goal.id === 'g-mvp')
   check(
     'a goal completed this week still shows, marked completed',
-    done?.completedThisWeek === true && done.tasksCompleted === 1,
+    done?.completedThisWeek === true && done.tasksCompleted === before + 1,
   )
+  const completedBeforeDelete = selectWeekReview(r, thisWeek, today).summary.completed
   r = reducer(r, { type: 'task/delete', id: 't-ux' })
   const afterDelete = selectWeekReview(r, thisWeek, today)
   check(
     'deleted work still counts in its week',
-    afterDelete.summary.completed === 1 &&
+    afterDelete.summary.completed === completedBeforeDelete &&
       afterDelete.completed.some((c) => c.items.some((i) => i.title === 'Review dashboard UX')),
   )
   let n = buildSampleState()
@@ -449,6 +454,114 @@ console.log('Audit: weekly review over time')
   check(
     'brand-new projects and goals are not flagged as stalled',
     !flagged.includes('project-fresh') && !flagged.includes('goal-fresh-goal'),
+  )
+}
+
+console.log('Phase 3: intelligence')
+{
+  // Stalled project: MandiCrypt last moved 1 day ago in the sample; age it to 20 days.
+  let st = buildSampleState()
+  const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString()
+  st = {
+    ...st,
+    projects: st.projects.map((p) => (p.id === 'p-mandi' ? { ...p, createdAt: ago(40) } : p)),
+    workEvents: st.workEvents.map((e) => (e.projectId === 'p-mandi' ? { ...e, at: ago(20) } : e)),
+  }
+  check(
+    'a quiet project is flagged as stalled',
+    get(st, 't-outreach').why.some((r) => r.key === 'stalled' && r.short === 'Project has stalled'),
+  )
+  check('…but an active one is not', !get(st, 't-ux').why.some((r) => r.key === 'stalled'))
+  let fresh = reducer(buildSampleState(), { type: 'project/add', id: 'p-new', title: 'New thing' })
+  fresh = reducer(fresh, { type: 'task/add', id: 'nt', task: { title: 'First step', projectId: 'p-new' } })
+  check('a brand-new project is never "stalled"', !get(fresh, 'nt').why.some((r) => r.key === 'stalled'))
+
+  // Task age.
+  let old = buildSampleState()
+  old = {
+    ...old,
+    tasks: old.tasks.map((t) =>
+      t.id === 't-devenv' ? { ...t, createdAt: new Date(Date.now() - 60 * 86_400_000).toISOString() } : t,
+    ),
+  }
+  check(
+    'long-open work gets a small, capped nudge',
+    get(old, 't-devenv').why.some((r) => r.key === 'age' && r.weight <= 2),
+  )
+
+  // Deadline pressure and overdue.
+  let dl = buildSampleState()
+  dl = reducer(dl, { type: 'task/deadline', id: 't-devenv', dueOn: addDays(today, 2) })
+  const near = get(dl, 't-devenv').score
+  dl = reducer(dl, { type: 'task/deadline', id: 't-devenv', dueOn: addDays(today, 1) })
+  const nearer = get(dl, 't-devenv').score
+  dl = reducer(dl, { type: 'task/deadline', id: 't-devenv', dueOn: addDays(today, -2) })
+  check('deadline pressure grows as the date approaches', nearer > near && get(dl, 't-devenv').score > nearer)
+  check(
+    'overdue work says so',
+    get(dl, 't-devenv').reasons[0] === 'Overdue' || get(dl, 't-devenv').reasons.includes('Overdue'),
+  )
+  check(
+    'reason wording: unlocks / postponed',
+    get(buildSampleState(), 't-blueprint').why.some((r) => r.short === 'Unlocks 2 other tasks') &&
+      get(buildSampleState(), 't-outreach').why.some((r) => r.short === 'Postponed 2 times'),
+  )
+}
+
+console.log('Phase 3: daily plan')
+{
+  let p = buildSampleState()
+  const plan = planDay(p, today)
+  check('suggests a short list', plan.items.length >= 1 && plan.items.length <= 5, `${plan.items.length} items`)
+  check(
+    'every suggestion explains why',
+    plan.items.every((i) => i.reason.length > 0),
+  )
+  check(
+    'uses the engine’s order (no second priority system)',
+    plan.items[0].task.id === suggestable(p, today).filter((r) => isForToday(r.task, today))[0].task.id,
+  )
+  check(
+    'fits the time you have',
+    plan.items.reduce((s, i) => s + i.minutes, 0) <= p.settings.dailyMinutes || plan.items.length === 1,
+  )
+  p = reducer(p, { type: 'settings/update', patch: { dailyMinutes: 60 } })
+  const small = planDay(p, today)
+  check(
+    'less time → fewer items, and today’s planned work is flagged as too much',
+    small.items.length < plan.items.length && small.overloaded,
+  )
+  p = buildSampleState()
+  const first = planDay(p, today).items.find((i) => !isForToday(i.task, today)) ?? planDay(p, today).items[1]
+  p = reducer(p, { type: 'plan/decide', id: first.task.id, accepted: true, today, source: 'home' })
+  check(
+    'accept: planned for today, recorded',
+    isForToday(
+      p.tasks.find((t) => t.id === first.task.id)!,
+      today,
+    ) && p.events.at(-1)?.type === 'plan.accepted',
+  )
+  check(
+    '…and stays on the plan as accepted',
+    planDay(p, today).items.some((i) => i.task.id === first.task.id && i.status === 'accepted'),
+  )
+  const second = planDay(p, today).items.find((i) => i.status === 'suggested')!
+  p = reducer(p, { type: 'plan/decide', id: second.task.id, accepted: false, today, source: 'home' })
+  check(
+    'reject: gone from today’s plan, task unchanged',
+    !planDay(p, today).items.some((i) => i.task.id === second.task.id),
+  )
+  const third = planDay(p, today).items.find((i) => i.status === 'suggested')!
+  p = reducer(p, { type: 'task/skip', id: third.task.id, plannedFor: addDays(today, 1), source: 'home' })
+  check(
+    'postpone: moved to tomorrow, off today’s plan',
+    !planDay(p, today).items.some((i) => i.task.id === third.task.id),
+  )
+  p = reducer(p, { type: 'task/complete', id: first.task.id })
+  const after = planDay(p, today)
+  check(
+    'complete: shown as done, plan complete when every accepted item is done',
+    after.items.some((i) => i.task.id === first.task.id && i.status === 'done') && after.complete,
   )
 }
 

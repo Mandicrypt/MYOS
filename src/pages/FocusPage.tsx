@@ -130,7 +130,10 @@ export function FocusPage() {
   }
 
   return (
-    <FocusFrame onBack={back} right={<FocusTimer />}>
+    <FocusFrame
+      onBack={back}
+      right={<FocusTimer onSession={(minutes) => dispatch({ type: 'focus/session', id: task.id, minutes })} />}
+    >
       <article className="pt-6 pb-40 md:pt-12">
         {context ? <p className="text-base text-muted">{context}</p> : null}
         <h1 className="mt-1.5 text-2xl font-medium tracking-[-0.025em] text-balance">{task.title}</h1>

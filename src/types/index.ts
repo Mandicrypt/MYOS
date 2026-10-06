@@ -164,6 +164,8 @@ export type WorkEvent = {
   projectId?: ID | null
   goalId?: ID | null
   scoringVersion?: number
+  /** When the server stored it (set by the database, never by a device). Only on synced events. */
+  receivedAt?: ISODateTime
 }
 
 /** Where in the app a user action happened. */
@@ -189,6 +191,13 @@ export type UserEventType =
   /** Weekly Review: the user accepted or turned down a recommended priority. */
   | 'recommendation.accepted'
   | 'recommendation.rejected'
+  /** Daily Plan: the user accepted or turned down a suggestion for today. */
+  | 'plan.accepted'
+  | 'plan.rejected'
+  /** A timed Focus session ended (data.minutes). */
+  | 'focus.session'
+  /** The user finished their Weekly Review (data.week = Monday). No task. */
+  | 'review.completed'
 
 /**
  * One thing the user did, or one thing that happened to a task.
@@ -197,7 +206,8 @@ export type UserEventType =
 export type UserEvent = {
   id: ID
   type: UserEventType
-  taskId: ID
+  /** null for events that aren't about one task. */
+  taskId: ID | null
   at: ISODateTime
   source?: ActionSource
   /** True if MYOS was suggesting this task as the main focus at the time. */
@@ -212,6 +222,8 @@ export type Settings = {
   name: string
   showMeaningfulWork: boolean
   theme: ThemeChoice
+  /** Focused minutes available on a typical day; the Daily Plan fits work into this. */
+  dailyMinutes: number
   updatedAt?: ISODateTime
 }
 

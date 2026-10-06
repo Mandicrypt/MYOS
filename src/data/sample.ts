@@ -43,7 +43,7 @@ export function buildSampleState(): AppState {
 
   return {
     version: 3,
-    settings: { name: 'Izuchukwu', showMeaningfulWork: true, theme: 'system' },
+    settings: { name: 'Izuchukwu', showMeaningfulWork: true, theme: 'system', dailyMinutes: 240 },
     goals: [
       {
         id: 'g-mvp',

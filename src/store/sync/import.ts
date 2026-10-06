@@ -56,7 +56,7 @@ export function prepareImport(state: AppState): AppState {
     events: state.events.map((e) => ({
       ...e,
       id: id(e.id),
-      taskId: id(e.taskId),
+      taskId: e.taskId === null ? null : id(e.taskId),
       // IDs inside event details (e.g. "by", "on") are remapped too, when they were mapped.
       data: e.data
         ? Object.fromEntries(

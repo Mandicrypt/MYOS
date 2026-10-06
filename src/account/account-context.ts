@@ -5,6 +5,7 @@ export type AccountInfo =
   | { mode: 'local' }
   | {
       mode: 'account'
+      userId: string
       email: string | null
       /** The wallet address, for wallet sign-ins. */
       wallet: string | null

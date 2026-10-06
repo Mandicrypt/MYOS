@@ -213,13 +213,14 @@ function SyncedStore({
   const account = useMemo<AccountInfo>(
     () => ({
       mode: 'account',
+      userId: user.id,
       email: user.email,
       wallet: user.wallet,
       sync,
       syncNow: () => void controllerRef.current?.pull(),
       signOut,
     }),
-    [user.email, user.wallet, sync, signOut],
+    [user.id, user.email, user.wallet, sync, signOut],
   )
 
   return (

@@ -12,10 +12,12 @@ import { HomePage } from '@/pages/HomePage'
 import { InboxPage } from '@/pages/InboxPage'
 import { NoteEditorPage } from '@/pages/NoteEditorPage'
 import { NotesPage } from '@/pages/NotesPage'
+import { PlanPage } from '@/pages/PlanPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProjectDetailPage } from '@/pages/ProjectDetailPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ReviewPage } from '@/pages/ReviewPage'
+import { RewardsPage } from '@/pages/RewardsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { AuthGate } from '@/account/AuthGate'
@@ -36,6 +38,7 @@ export function App() {
                 <Route element={<AppShell />}>
                   <Route index element={<HomePage />} />
                   <Route path="inbox" element={<InboxPage />} />
+                  <Route path="plan" element={<PlanPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="projects" element={<ProjectsPage />} />
                   <Route path="projects/:projectId" element={<ProjectDetailPage />} />
@@ -43,6 +46,7 @@ export function App() {
                   <Route path="goals/:goalId" element={<GoalDetailPage />} />
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="notes/:noteId" element={<NoteEditorPage />} />
+                  <Route path="rewards" element={<RewardsPage />} />
                   <Route path="review" element={<ReviewPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="*" element={<NotFoundPage />} />

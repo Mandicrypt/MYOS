@@ -186,6 +186,23 @@ export function ReviewPage() {
           ) : null}
 
           {week.isCurrent ? (
+            <Section title="Finish">
+              {state.events.some((e) => e.type === 'review.completed' && e.data?.week === week.start) ? (
+                <p className="text-base text-calm-green" role="status">
+                  Review finished for this week.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-base text-muted">Looked through everything? Mark this week’s review as done.</p>
+                  <Button variant="primary" onClick={() => dispatch({ type: 'review/complete', week: week.start })}>
+                    Finish review
+                  </Button>
+                </div>
+              )}
+            </Section>
+          ) : null}
+
+          {week.isCurrent ? (
             <Section title="Next week">
               <p className="-mt-1 mb-3 text-sm text-muted">
                 MYOS recommends. You decide. Nothing changes unless you accept.

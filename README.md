@@ -31,8 +31,9 @@ MYOS works in two modes:
 6. If you deploy (for example on Vercel), add the same two values as environment variables there.
 
 7. In **SQL Editor**, also run `supabase/migrations/002_wallets.sql` (wallet sign-in), then
-   `supabase/migrations/003_goals_notes.sql` (Phase 2: goals and notes). Both only add things;
-   they are safe to run on a database that already has data.
+   `supabase/migrations/003_goals_notes.sql` (Phase 2: goals and notes), then
+   `supabase/migrations/004_intelligence_rewards.sql` (Phase 3: rewards). All of them only add
+   things; they are safe to run on a database that already has data, and safe to run twice.
 
 By default Supabase asks new users to confirm their email. You can turn that off under
 **Authentication → Sign In / Providers → Email** while testing.
@@ -79,6 +80,7 @@ UI → actions → reducer → AppState → persistence layer ─┬─ this dev
 - `npm run build:single` — one self-contained HTML file in `dist-single/`
 - `npm run check:engine` — checks the decision logic (ranking, dependencies, scoring, anti-gaming)
 - `npm run check:sync` — checks cloud sync with two simulated devices (no Supabase needed)
+- `npm run check:rewards` — checks scoring, anti-farming, multipliers, leaderboards, snapshots and wallet linking
 
 ## How it's organised
 
@@ -104,6 +106,43 @@ src/
 - Weekly Review (`src/store/review.ts`) works in calendar weeks. Its recommendations come straight
   from the engine; accepting or rejecting one is recorded as a user event. Nothing changes unless accepted.
 - Press `/` anywhere to search tasks, projects, goals, notes and inbox.
+
+## Intelligence and Rewards (Phase 3)
+
+Everything here is optional. MYOS works fully without a wallet.
+
+**Intelligence** (`src/engine`): the same rule-based engine, with more context (stalled projects,
+task age, unlocking other work, repeated postponing, workload). `daily-plan.ts` picks a few tasks
+that fit the day, each with a short reason; you can accept, move to tomorrow, or skip.
+`activity.ts` turns real work into an activity score. Every point value and daily cap is in
+`activity-config.ts`. Nothing is rewarded for tiny tasks ticked straight away, reopening and
+completing again, recreating the same task, or events recorded long after they claim to have happened.
+
+**Rewards** (`src/rewards`, page: Rewards): final score = activity score × holder multiplier.
+Eligibility ($20 minimum), the multiplier tiers, the top-10 split and the pools all live in
+`rewards/config.ts`. Daily and weekly periods are UTC (weeks run Monday to Sunday), so a score is
+the same on every device. A snapshot moves through
+UPCOMING → SNAPSHOT_PENDING → SNAPSHOT_TAKEN → CALCULATING → DISTRIBUTION_PENDING → DISTRIBUTED,
+and once taken it cannot be changed (the database refuses it).
+
+**The MYOS token does not exist yet.** Nothing about it is invented. Until you set
+`VITE_MYOS_TOKEN_CHAIN` and `VITE_MYOS_TOKEN_CONTRACT_ADDRESS`, the Rewards page shows a calm
+"pre-launch" state. No ZEC or token is ever sent by this code.
+
+**Mock mode** (for testing only): build with `VITE_MYOS_REWARDS_MOCK=true`. It shows fake balances,
+a fake leaderboard and a simulated snapshot, always with a visible banner. It is chosen when the app
+is built, never from browser storage, and it is ignored once a real token is configured.
+
+**Linking a wallet for rewards** needs the `link-wallet` Supabase Edge Function
+(`supabase/functions/link-wallet`). It checks the wallet's signature on the server. Deploy it with
+the Supabase CLI: `supabase functions deploy link-wallet`. One wallet can belong to one account, and the
+reward wallet can be changed once a week; a wallet chosen during a period counts from the next one.
+
+**What is not built yet:** the scheduled job that takes real snapshots (it needs the token to read
+balances and a price), real ZEC transfers, and server-side scoring. Until then, scores shown in the
+app are calculated on your device for your information only. They are not authoritative.
+
+Database rule tests live in `supabase/tests/` (run on a fresh test database; every line must say ok). Run `npm run check:rewards` for the reward logic.
 
 ## How MYOS decides (src/engine)
 
