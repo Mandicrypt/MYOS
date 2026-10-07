@@ -1,6 +1,6 @@
 import { Plus, Search } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { isActive, mainNav, settingsNav, type NavItem } from '@/app/navigation'
+import { isActive, mainNav, settingsNav, tokenNav, type NavItem } from '@/app/navigation'
 import { useUi } from '@/app/ui-context'
 import { cn } from '@/lib/cn'
 import { useStore } from '@/store/store'
@@ -70,6 +70,9 @@ export function Sidebar() {
         </ul>
       </nav>
 
+      <div className="mb-0.5">
+        <SidebarLink item={tokenNav} />
+      </div>
       <div className="flex items-center gap-1">
         <div className="flex-1">
           <SidebarLink item={settingsNav} />

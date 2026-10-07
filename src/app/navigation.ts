@@ -2,6 +2,7 @@ import {
   Award,
   CalendarCheck,
   CircleDot,
+  Coins,
   FileText,
   Flag,
   Folder,
@@ -25,6 +26,9 @@ export const mainNav: NavItem[] = [
   { label: 'Rewards', to: '/rewards', icon: Award },
   { label: 'Weekly Review', to: '/review', icon: CalendarCheck },
 ]
+
+/** Public token page. Shown quietly beside Settings, not in the main list. */
+export const tokenNav: NavItem = { label: '$MYOS Token', to: '/token', icon: Coins }
 
 export const settingsNav: NavItem = { label: 'Settings', to: '/settings', icon: Settings }
 

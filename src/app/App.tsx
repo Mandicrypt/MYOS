@@ -20,17 +20,19 @@ import { ReviewPage } from '@/pages/ReviewPage'
 import { RewardsPage } from '@/pages/RewardsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
+import { TokenPage } from '@/pages/TokenPage'
 import { AuthGate } from '@/account/AuthGate'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { UiProvider } from './ui-context'
 
 // HashRouter keeps every link working on any static host, with no server setup.
+// It sits above sign-in so the public token page can be shown to signed-out visitors.
 export function App() {
   return (
-    <AuthProvider>
-      <AuthGate>
-        <ToastProvider>
-          <HashRouter>
+    <HashRouter>
+      <AuthProvider>
+        <AuthGate>
+          <ToastProvider>
             <UiProvider>
               <Routes>
                 <Route path="/focus" element={<FocusPage />} />
@@ -47,6 +49,7 @@ export function App() {
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="notes/:noteId" element={<NoteEditorPage />} />
                   <Route path="rewards" element={<RewardsPage />} />
+                  <Route path="token" element={<TokenPage />} />
                   <Route path="review" element={<ReviewPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="*" element={<NotFoundPage />} />
@@ -57,9 +60,9 @@ export function App() {
               <QuickAdd />
               <SearchDialog />
             </UiProvider>
-          </HashRouter>
-        </ToastProvider>
-      </AuthGate>
-    </AuthProvider>
+          </ToastProvider>
+        </AuthGate>
+      </AuthProvider>
+    </HashRouter>
   )
 }

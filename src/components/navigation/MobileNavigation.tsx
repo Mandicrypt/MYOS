@@ -1,7 +1,7 @@
 import { Ellipsis, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { isActive, mainNav, settingsNav, type NavItem } from '@/app/navigation'
+import { isActive, mainNav, settingsNav, tokenNav, type NavItem } from '@/app/navigation'
 import { useUi } from '@/app/ui-context'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/cn'
@@ -9,7 +9,7 @@ import { useStore } from '@/store/store'
 import { ThemeToggle } from './ThemeToggle'
 
 const primary = ['/', '/focus', '/tasks'].map((to) => mainNav.find((n) => n.to === to)!)
-const more = [...mainNav.filter((n) => !primary.includes(n)), settingsNav]
+const more = [...mainNav.filter((n) => !primary.includes(n)), tokenNav, settingsNav]
 
 const tabClass = (active: boolean) =>
   cn(

@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Field, inputClass } from '@/components/ui/Field'
 import { CalmScreen } from './CalmScreen'
@@ -62,6 +63,12 @@ export function AuthPage() {
           </Button>
         </div>
         <p className="mt-4 text-sm text-muted">Both lead to the same kind of MYOS account.</p>
+        <p className="mt-10 border-t border-line pt-5 text-sm text-muted">
+          Looking for the token?{' '}
+          <Link to="/token" className="rounded-sm text-accent-ink underline-offset-4 hover:underline">
+            MYOS Token details and Buy
+          </Link>
+        </p>
         <WalletPicker open={picking} onOpenChange={setPicking} />
       </CalmScreen>
     )
