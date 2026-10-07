@@ -12,7 +12,8 @@
     "build:single": "tsc -b && vite build --mode single",
     "check:engine": "tsx --tsconfig tsconfig.app.json scripts/check-engine.ts",
     "check:sync": "tsx --tsconfig tsconfig.app.json scripts/check-sync.ts",
-    "check:rewards": "tsx --tsconfig tsconfig.app.json scripts/check-rewards.ts"
+    "check:rewards": "tsx --tsconfig tsconfig.app.json scripts/check-rewards.ts",
+    "check:token": "tsx --tsconfig tsconfig.app.json scripts/check-token.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

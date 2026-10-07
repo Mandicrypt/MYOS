@@ -81,6 +81,7 @@ UI → actions → reducer → AppState → persistence layer ─┬─ this dev
 - `npm run check:engine` — checks the decision logic (ranking, dependencies, scoring, anti-gaming)
 - `npm run check:sync` — checks cloud sync with two simulated devices (no Supabase needed)
 - `npm run check:rewards` — checks scoring, anti-farming, multipliers, leaderboards, snapshots and wallet linking
+- `npm run check:token` — checks the token page settings (valid address, matching Buy link) and the Copy function
 
 ## How it's organised
 
@@ -143,6 +144,20 @@ balances and a price), real ZEC transfers, and server-side scoring. Until then, 
 app are calculated on your device for your information only. They are not authoritative.
 
 Database rule tests live in `supabase/tests/` (run on a fresh test database; every line must say ok). Run `npm run check:rewards` for the reward logic.
+
+## The MYOS Token page
+
+A public page at `/#/token` (so `myosapp.site/#/token`). It works without signing in, and signed-in
+users reach it from the sidebar (or More on a phone). It has Buy, Copy CA, the full contract address,
+token details, how to buy, and a tokenomics section.
+
+**To update it, edit one file: `src/config/token.ts`.** Entries marked PLACEHOLDER are stand-ins
+(contract address and Buy link). Fill in the tokenomics rows there when the numbers are final; an
+empty row shows "To be announced". After editing, run `npm run check:token`. It confirms the address is
+valid, that the Buy link contains the same address, and that Copy copies the full address.
+
+This page is display-only. It does not switch Rewards on. Rewards uses `VITE_MYOS_TOKEN_CHAIN` and
+`VITE_MYOS_TOKEN_CONTRACT_ADDRESS` (see Intelligence and Rewards above).
 
 ## How MYOS decides (src/engine)
 
