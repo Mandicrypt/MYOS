@@ -1,9 +1,10 @@
 /**
  * MYOS Token page: everything shown on the token page lives here.
  *
- * ┌─ PLACEHOLDERS ────────────────────────────────────────────────────────────┐
- * │ Entries marked PLACEHOLDER are stand-ins. Replace them once the token is   │
- * │ deployed, then run `npm run check:token` to confirm they still agree.      │
+ * ┌─ TO CHANGE THE TOKEN ─────────────────────────────────────────────────────┐
+ * │ Edit `contractAddress` and `buyUrl` below (both contain the address), and  │
+ * │ the tokenomics rows at the bottom. Then run `npm run check:token` to       │
+ * │ confirm everything still agrees.                                           │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
  * This file is display-only. The Rewards system reads its own token settings
@@ -20,11 +21,14 @@ export const TOKEN_PAGE = {
   /** How the chain is named on the page. */
   chainName: 'Robinhood',
 
-  /** PLACEHOLDER: the token's contract address. Copied exactly as written, never shortened. */
-  contractAddress: '0x71b81fF3c6AA2969570Aaec1d160f29fec44Ca65',
+  /** The token's contract address. Copied exactly as written, never shortened. */
+  contractAddress: '0x410E6AC19a835920A0454c21aacB662000b1778b',
 
-  /** PLACEHOLDER: the official page where the token is bought. */
-  buyUrl: 'https://www.ponsfamily.com/launchpad/0x71b81fF3c6AA2969570Aaec1d160f29fec44Ca65',
+  /**
+   * The official page where the token is bought. It must contain the same address
+   * as above; `npm run check:token` fails if they ever disagree.
+   */
+  buyUrl: 'https://www.ponsfamily.com/launchpad/0x410E6AC19a835920A0454c21aacB662000b1778b',
 
   /**
    * The chain's native token, used to pay network fees (for example "ETH").
