@@ -1,4 +1,16 @@
-import type { AppState, Goal, InboxItem, Milestone, Note, Project, Settings, Task, UserEvent, WorkEvent } from '@/types'
+import type {
+  AppState,
+  Goal,
+  InboxItem,
+  Milestone,
+  Note,
+  Project,
+  Settings,
+  Task,
+  TaskSeries,
+  UserEvent,
+  WorkEvent,
+} from '@/types'
 
 /**
  * Converting between MYOS records (camelCase) and database rows (snake_case).
@@ -21,6 +33,9 @@ export const goalToRow = (g: Goal, userId: string): Row => ({
   why: g.why,
   status: g.status,
   importance: g.importance,
+  kind: g.kind,
+  cadence: g.cadence,
+  ends_on: g.endsOn,
   target_date: g.targetDate,
   completed_at: g.completedAt,
   archived_at: g.archivedAt,
@@ -33,6 +48,9 @@ export const rowToGoal = (r: Row): Goal => ({
   why: str(r.why),
   status: (r.status === 'achieved' ? 'completed' : r.status) as Goal['status'],
   importance: (r.importance ?? 'normal') as Goal['importance'],
+  kind: (r.kind ?? 'finite') as Goal['kind'],
+  cadence: (r.cadence ?? null) as Goal['cadence'],
+  endsOn: strOrNull(r.ends_on),
   targetDate: strOrNull(r.target_date),
   completedAt: tsOrNull(r.completed_at),
   archivedAt: tsOrNull(r.archived_at),
@@ -108,6 +126,8 @@ export const taskToRow = (t: Task, userId: string): Row => ({
   postpone_count: t.postponeCount,
   origin: t.origin,
   parent_id: t.parentId,
+  recurrence_id: t.recurrenceId,
+  occurrence_date: t.occurrenceDate,
   created_at: t.createdAt,
   updated_at: t.updatedAt ?? t.createdAt,
   completed_at: t.completedAt,
@@ -138,9 +158,61 @@ export const rowToTask = (r: Row): Task => ({
   postponeCount: Number(r.postpone_count ?? 0),
   origin: r.origin as Task['origin'],
   parentId: strOrNull(r.parent_id),
+  recurrenceId: strOrNull(r.recurrence_id),
+  occurrenceDate: strOrNull(r.occurrence_date),
   createdAt: ts(r.created_at),
   updatedAt: ts(r.updated_at),
   completedAt: tsOrNull(r.completed_at),
+})
+
+export const seriesToRow = (s: TaskSeries, userId: string): Row => ({
+  id: s.id,
+  user_id: userId,
+  title: s.title,
+  description: s.description ?? null,
+  project_id: s.projectId,
+  goal_id: s.goalId,
+  effort_minutes: s.effortMinutes,
+  impact: s.signals.impact,
+  consequence: s.signals.consequence,
+  user_importance: s.signals.userImportance,
+  checklist: s.checklist,
+  links: s.links,
+  frequency: s.frequency,
+  interval_count: s.interval,
+  days_of_week: s.daysOfWeek,
+  day_of_month: s.dayOfMonth,
+  starts_on: s.startsOn,
+  ends_on: s.endsOn,
+  timezone: s.timezone,
+  active: s.active,
+  created_at: s.createdAt,
+  updated_at: s.updatedAt ?? s.createdAt,
+})
+export const rowToSeries = (r: Row): TaskSeries => ({
+  id: str(r.id),
+  title: str(r.title),
+  description: optional(r.description),
+  projectId: strOrNull(r.project_id),
+  goalId: strOrNull(r.goal_id),
+  effortMinutes: r.effort_minutes == null ? null : Number(r.effort_minutes),
+  signals: {
+    impact: Number(r.impact) as TaskSeries['signals']['impact'],
+    consequence: Number(r.consequence) as TaskSeries['signals']['consequence'],
+    userImportance: r.user_importance as TaskSeries['signals']['userImportance'],
+  },
+  checklist: (r.checklist as TaskSeries['checklist'] | null) ?? [],
+  links: (r.links as TaskSeries['links'] | null) ?? [],
+  frequency: r.frequency as TaskSeries['frequency'],
+  interval: Number(r.interval_count ?? 1),
+  daysOfWeek: ((r.days_of_week as number[] | null) ?? []).map(Number),
+  dayOfMonth: r.day_of_month == null ? null : Number(r.day_of_month),
+  startsOn: str(r.starts_on),
+  endsOn: strOrNull(r.ends_on),
+  timezone: str(r.timezone) || 'UTC',
+  active: Boolean(r.active),
+  createdAt: ts(r.created_at),
+  updatedAt: ts(r.updated_at),
 })
 
 export const inboxToRow = (i: InboxItem, userId: string): Row => ({
@@ -196,6 +268,9 @@ export const workEventToRow = (e: WorkEvent, userId: string): Row => ({
   project_id: e.projectId ?? null,
   goal_id: e.goalId ?? null,
   scoring_version: e.scoringVersion ?? null,
+  recurrence_id: e.recurrenceId ?? null,
+  occurrence_date: e.occurrenceDate ?? null,
+  local_day: e.localDay ?? null,
 })
 export const rowToWorkEvent = (r: Row): WorkEvent => ({
   id: str(r.id),
@@ -212,6 +287,9 @@ export const rowToWorkEvent = (r: Row): WorkEvent => ({
   goalId: strOrNull(r.goal_id),
   scoringVersion: r.scoring_version == null ? undefined : Number(r.scoring_version),
   receivedAt: r.created_at == null ? undefined : ts(r.created_at),
+  recurrenceId: strOrNull(r.recurrence_id),
+  occurrenceDate: strOrNull(r.occurrence_date),
+  localDay: strOrNull(r.local_day),
 })
 
 export const userEventToRow = (e: UserEvent, userId: string): Row => ({
@@ -255,6 +333,7 @@ export type TableRows = {
   goals: Row[]
   projects: Row[]
   milestones: Row[]
+  task_series: Row[]
   tasks: Row[]
   inbox_items: Row[]
   notes: Row[]
@@ -268,6 +347,7 @@ export function stateToRows(state: AppState, userId: string, fallbackTime = new 
     goals: state.goals.map((g) => goalToRow(g, userId)),
     projects: state.projects.map((p) => projectToRow(p, userId)),
     milestones: state.milestones.map((m) => milestoneToRow(m, userId, fallbackTime)),
+    task_series: state.series.map((x) => seriesToRow(x, userId)),
     tasks: state.tasks.map((t) => taskToRow(t, userId)),
     inbox_items: state.inbox.map((i) => inboxToRow(i, userId)),
     notes: state.notes.map((n) => noteToRow(n, userId)),
@@ -286,6 +366,7 @@ export function rowsToState(rows: TableRows, version: number): AppState {
     goals: rows.goals.map(rowToGoal).sort(byCreated),
     projects: rows.projects.map(rowToProject).sort(byCreated),
     milestones: rows.milestones.map(rowToMilestone).sort(byCreated),
+    series: rows.task_series.map(rowToSeries).sort(byCreated),
     tasks: rows.tasks.map(rowToTask).sort(byCreated),
     inbox: rows.inbox_items.map(rowToInbox).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     notes: rows.notes.map(rowToNote),

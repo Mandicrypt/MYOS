@@ -43,6 +43,8 @@ type InternalAction = Action | { type: 'sync/merge'; cloud: AppState; base: AppS
 /** The domain reducer, plus change timestamps and cloud merges. The domain reducer itself is unchanged. */
 function storeReducer(state: AppState, action: InternalAction): AppState {
   if (action.type === 'sync/merge') return mergeStates(state, action.cloud, action.base)
+  // Making occurrences isn't an edit: their timestamps come from their dates, so devices agree.
+  if (action.type === 'recurrence/ensure') return reducer(state, action)
   return stampChanges(state, reducer(state, action))
 }
 
@@ -66,6 +68,11 @@ export function StoreProvider({ backend, children }: { backend: StoreBackend; ch
     backendRef.current = backend
   })
   const [today, setToday] = useState(todayISO)
+
+  // Make today's recurring occurrences (and catch up recent days). Does nothing if they all exist.
+  useEffect(() => {
+    rawDispatch({ type: 'recurrence/ensure' })
+  }, [state, today])
 
   // Save locally on every change, and let sync know.
   const first = useRef(true)

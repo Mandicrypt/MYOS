@@ -1,3 +1,4 @@
+import { isMissedOccurrence } from '@/engine/routines'
 import { engine } from '@/engine/importance'
 import { isForToday, suggestable } from '@/engine/next'
 import { goalIdOf, isBlocked } from '@/engine/relations'
@@ -43,19 +44,26 @@ export type TaskGroups = {
   tomorrow: RankedTask[]
   later: RankedTask[]
   waiting: RankedTask[]
+  /** Recurring tasks whose day has passed without being done. Kept, but not part of today. */
+  missed: Task[]
   done: Task[]
 }
 
 export function selectTaskGroups(state: AppState, today: ISODate): TaskGroups {
   const tomorrow = addDays(today, 1)
   const ranked = rankOpen(state, today)
-  const groups: TaskGroups = { today: [], tomorrow: [], later: [], waiting: [], done: [] }
+  const groups: TaskGroups = { today: [], tomorrow: [], later: [], waiting: [], missed: [], done: [] }
   for (const r of ranked) {
+    if (isMissedOccurrence(r.task, today)) {
+      groups.missed.push(r.task)
+      continue
+    }
     if (r.blocked) groups.waiting.push(r)
     else if (isForToday(r.task, today)) groups.today.push(r)
     else if (r.task.plannedFor === tomorrow) groups.tomorrow.push(r)
     else groups.later.push(r)
   }
+  groups.missed.sort((a, b) => (b.occurrenceDate ?? '').localeCompare(a.occurrenceDate ?? ''))
   groups.done = state.tasks
     .filter((t) => t.status === 'done' && t.completedAt && daysBetween(t.completedAt.slice(0, 10), today) <= 7)
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
@@ -135,6 +143,7 @@ export function selectReview(state: AppState, today: ISODate): ReviewView {
     .filter(
       (t) =>
         t.status === 'open' &&
+        !t.recurrenceId &&
         (t.waitingOn ||
           (t.dueOn && t.dueOn < today) ||
           t.postponeCount >= 2 ||

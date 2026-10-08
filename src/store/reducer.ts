@@ -1,5 +1,6 @@
 import { scoreCompletion, SCORING_VERSION } from '@/engine/meaningful-work'
 import { activeCreditFor } from '@/engine/work-history'
+import { dateInTimeZone, deviceTimeZone, type RecurrenceRule } from '@/engine/recurrence'
 import { goalOf, isBlocked, newlyUnblockedBy, wouldCreateCycle } from '@/engine/relations'
 import { daysBetween, todayISO } from '@/lib/dates'
 import { newId } from '@/lib/id'
@@ -7,7 +8,9 @@ import type {
   ActionSource,
   AppState,
   Goal,
+  GoalCadence,
   GoalImportance,
+  GoalKind,
   GoalStatus,
   ID,
   ISODate,
@@ -19,6 +22,16 @@ import type {
   UserImportance,
 } from '@/types'
 import { record } from './events'
+import {
+  createSeries,
+  deleteSeries,
+  ensureOccurrences,
+  occurrenceWasCredited,
+  skipOccurrence,
+  stopSeries,
+  updateSeries,
+  type SeriesPatch,
+} from './recurring'
 
 export type NewTask = Pick<Task, 'title'> &
   Partial<Pick<Task, 'plannedFor' | 'projectId' | 'goalId' | 'dueOn' | 'description'>> & { origin?: TaskOrigin }
@@ -59,8 +72,22 @@ export type Action =
   | { type: 'note/delete'; id: ID }
   | { type: 'project/add'; id?: ID; title: string; summary?: string }
   | { type: 'project/update'; id: ID; patch: Partial<Omit<Project, 'id'>> }
-  | { type: 'goal/add'; id?: ID; title: string; why?: string; importance?: GoalImportance; targetDate?: ISODate | null }
-  | { type: 'goal/update'; id: ID; patch: Partial<Pick<Goal, 'title' | 'why' | 'importance' | 'targetDate'>> }
+  | {
+      type: 'goal/add'
+      id?: ID
+      title: string
+      why?: string
+      importance?: GoalImportance
+      targetDate?: ISODate | null
+      kind?: GoalKind
+      cadence?: GoalCadence | null
+      endsOn?: ISODate | null
+    }
+  | {
+      type: 'goal/update'
+      id: ID
+      patch: Partial<Pick<Goal, 'title' | 'why' | 'importance' | 'targetDate' | 'kind' | 'cadence' | 'endsOn'>>
+    }
   | { type: 'goal/status'; id: ID; status: GoalStatus }
   /** Daily Plan: accept (plans it for today) or turn down a suggestion. */
   | ({ type: 'plan/decide'; id: ID; accepted: boolean; today: ISODate } & Meta)
@@ -71,6 +98,13 @@ export type Action =
   /** Weekly Review: the user accepts (and plans) or turns down a recommended task. */
   | ({ type: 'recommendation/decide'; id: ID; accepted: boolean; plannedFor?: ISODate } & Meta)
   | { type: 'settings/update'; patch: Partial<Settings> }
+  /** Recurring tasks. `now` is for tests; normally the real clock is used. */
+  | { type: 'recurrence/ensure'; now?: string }
+  | ({ type: 'series/create'; id?: ID; fromTaskId: ID; rule: RecurrenceRule; timezone?: string; now?: string } & Meta)
+  | ({ type: 'series/update'; id: ID; patch: SeriesPatch; now?: string } & Meta)
+  | ({ type: 'series/stop'; id: ID; now?: string } & Meta)
+  | ({ type: 'series/delete'; id: ID } & Meta)
+  | ({ type: 'occurrence/skip'; id: ID } & Meta)
   | { type: 'state/replace'; state: AppState }
 
 const now = () => new Date().toISOString()
@@ -130,6 +164,8 @@ export function reducer(state: AppState, action: Action): AppState {
         postponeCount: 0,
         origin: action.task.origin ?? 'user',
         parentId: null,
+        recurrenceId: null,
+        occurrenceDate: null,
         createdAt: now(),
         completedAt: null,
       }
@@ -158,7 +194,11 @@ export function reducer(state: AppState, action: Action): AppState {
       const task = state.tasks.find((t) => t.id === action.id)
       if (!task || task.status === 'done') return state
       const at = new Date()
-      const { points, breakdown } = scoreCompletion(task, state, at)
+      const scored = scoreCompletion(task, state, at)
+      // Finishing an occurrence that was already finished once (deleted and made again) earns nothing more.
+      const points = occurrenceWasCredited(state, task) ? 0 : scored.points
+      const breakdown = scored.breakdown
+      const series = task.recurrenceId ? state.series.find((x) => x.id === task.recurrenceId) : undefined
       let next = updateTask(state, action.id, (t) => ({ ...t, status: 'done', completedAt: at.toISOString() }))
       next = {
         ...next,
@@ -176,6 +216,10 @@ export function reducer(state: AppState, action: Action): AppState {
             projectId: task.projectId,
             goalId: goalOf(state, task)?.id ?? null,
             scoringVersion: SCORING_VERSION,
+            recurrenceId: task.recurrenceId,
+            occurrenceDate: task.occurrenceDate,
+            // The date it was done, in the series' own timezone: an occurrence only counts on its own day.
+            localDay: task.recurrenceId ? dateInTimeZone(at, series?.timezone ?? deviceTimeZone()) : null,
           },
         ],
       }
@@ -325,6 +369,44 @@ export function reducer(state: AppState, action: Action): AppState {
       return next
     }
 
+    case 'recurrence/ensure':
+      return ensureOccurrences(state, action.now ? new Date(action.now) : new Date())
+
+    case 'series/create': {
+      const id = action.id ?? newId()
+      const next = createSeries(
+        state,
+        { id, fromTaskId: action.fromTaskId, rule: action.rule, timezone: action.timezone },
+        action.now ? new Date(action.now) : new Date(),
+      )
+      if (next === state) return state
+      return record(next, 'series.created', id, {
+        ...meta(action),
+        data: { fromTask: action.fromTaskId, frequency: action.rule.frequency },
+      })
+    }
+    case 'series/update': {
+      const next = updateSeries(state, action.id, action.patch, action.now ? new Date(action.now) : new Date())
+      return next === state
+        ? state
+        : record(next, 'series.updated', action.id, {
+            ...meta(action),
+            data: { rule: Boolean(action.patch.rule), template: Boolean(action.patch.template) },
+          })
+    }
+    case 'series/stop': {
+      const next = stopSeries(state, action.id, action.now ? new Date(action.now) : new Date())
+      return next === state ? state : record(next, 'series.stopped', action.id, meta(action))
+    }
+    case 'series/delete': {
+      const next = deleteSeries(state, action.id)
+      return next === state ? state : record(next, 'series.deleted', action.id, meta(action))
+    }
+    case 'occurrence/skip': {
+      const next = skipOccurrence(state, action.id)
+      return next === state ? state : record(next, 'occurrence.skipped', action.id, meta(action))
+    }
+
     case 'inbox/add':
       return { ...state, inbox: [{ id: newId(), text: action.text, createdAt: now() }, ...state.inbox] }
     case 'inbox/remove':
@@ -396,7 +478,11 @@ export function reducer(state: AppState, action: Action): AppState {
             why: action.why ?? '',
             status: 'active',
             importance: action.importance ?? 'normal',
-            targetDate: action.targetDate ?? null,
+            kind: action.kind ?? 'finite',
+            cadence: action.kind === 'ongoing' ? (action.cadence ?? 'daily') : null,
+            endsOn: action.kind === 'ongoing' ? (action.endsOn ?? null) : null,
+            // An ongoing goal has no target date.
+            targetDate: action.kind === 'ongoing' ? null : (action.targetDate ?? null),
             completedAt: null,
             archivedAt: null,
             createdAt: now(),

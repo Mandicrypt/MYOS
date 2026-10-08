@@ -41,11 +41,12 @@ export class SupabaseRepository implements CloudRepository {
   }
 
   async load(userId: string): Promise<CloudSnapshot> {
-    const [goals, projects, milestones, tasks, inbox_items, notes, work_events, user_events, settings] =
+    const [goals, projects, milestones, task_series, tasks, inbox_items, notes, work_events, user_events, settings] =
       await Promise.all([
         this.readAll('goals', userId, 'created_at'),
         this.readAll('projects', userId, 'created_at'),
         this.readAll('milestones', userId, 'created_at'),
+        this.readAll('task_series', userId, 'created_at'),
         this.readAll('tasks', userId, 'created_at'),
         this.readAll('inbox_items', userId, 'created_at'),
         this.readAll('notes', userId, 'created_at'),
@@ -53,7 +54,7 @@ export class SupabaseRepository implements CloudRepository {
         this.readAll('user_events', userId, 'at'),
         this.readAll('settings', userId, 'updated_at'),
       ])
-    return { goals, projects, milestones, tasks, inbox_items, notes, work_events, user_events, settings }
+    return { goals, projects, milestones, task_series, tasks, inbox_items, notes, work_events, user_events, settings }
   }
 
   async apply(userId: string, changes: ChangeSet): Promise<void> {

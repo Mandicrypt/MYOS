@@ -7,14 +7,16 @@ import type { AppState, Goal, Note, Task } from '@/types'
  * - Each signed-in user gets their own cache, so two accounts on one device never mix.
  */
 export const LEGACY_KEY = 'myos:v2'
-export const STATE_VERSION = 3
+export const STATE_VERSION = 4
 
 export const userCacheKey = (userId: string) => `myos:v2:user:${userId}`
 
-type Saved = Omit<AppState, 'events'> & { events?: AppState['events'] }
+type Saved = Omit<AppState, 'events' | 'series'> & { events?: AppState['events']; series?: AppState['series'] }
 
 /**
  * Brings data saved by an older version up to date, keeping everything the user made.
+ * v3 → v4 (recurring tasks): tasks get recurrence fields (null: not recurring), goals get a kind
+ * (finite) and cadence, and there is a list of task series (empty).
  * v2 → v3 (Phase 2): goals get importance, target date and completed/archived states;
  * notes get goal/task links and an archived state; task→note links move onto the notes.
  */
@@ -36,6 +38,9 @@ export function migrateSaved(saved: Saved): AppState | null {
         ...old,
         status,
         importance: old.importance ?? 'normal',
+        kind: old.kind ?? 'finite',
+        cadence: old.cadence ?? null,
+        endsOn: old.endsOn ?? null,
         targetDate: old.targetDate ?? null,
         completedAt: old.completedAt ?? (status === 'completed' ? (old.updatedAt ?? old.createdAt) : null),
         archivedAt: old.archivedAt ?? null,
@@ -58,9 +63,12 @@ export function migrateSaved(saved: Saved): AppState | null {
         postponeCount: old.postponeCount ?? 0,
         origin: old.origin ?? 'user',
         parentId: old.parentId ?? null,
+        recurrenceId: old.recurrenceId ?? null,
+        occurrenceDate: old.occurrenceDate ?? null,
         noteIds: [],
       }
     }),
+    series: saved.series ?? [],
     events: saved.events ?? [],
     settings: {
       ...saved.settings,
@@ -112,6 +120,7 @@ export function emptyState(name = ''): AppState {
   return {
     version: STATE_VERSION,
     goals: [],
+    series: [],
     projects: [],
     milestones: [],
     tasks: [],

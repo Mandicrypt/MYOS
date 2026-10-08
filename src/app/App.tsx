@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { QuickAdd } from '@/components/layout/QuickAdd'
 import { SearchDialog } from '@/components/layout/SearchDialog'
 import { TaskEditor } from '@/components/tasks/TaskEditor'
+import { RecurringRemoveDialog } from '@/components/tasks/RecurringRemoveDialog'
 import { WaitingDialog } from '@/components/tasks/WaitingDialog'
 import { ToastProvider } from '@/components/ui/Toast'
 import { FocusPage } from '@/pages/FocusPage'
@@ -57,6 +58,7 @@ export function App() {
               </Routes>
               <TaskEditor />
               <WaitingDialog />
+              <RecurringRemoveDialog />
               <QuickAdd />
               <SearchDialog />
             </UiProvider>

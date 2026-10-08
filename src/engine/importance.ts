@@ -1,3 +1,5 @@
+import { commitmentLabel } from './recurrence'
+import { missedCount } from './routines'
 import { daysBetween, friendlyDay } from '@/lib/dates'
 import type { Task } from '@/types'
 import { countedCredits } from './work-history'
@@ -91,12 +93,20 @@ function alignment(task: Task, ctx: EngineContext): Reason[] {
   const project = projectOf(ctx.state, task)
   if (!goal) return project ? reason('project', 2, null, null) : reason('unaligned', 0, null, null)
 
-  const short = project ? `Moves ${project.title} forward` : `Supports “${goal.title}”`
+  // A routine's "commitment" label says it better, so the generic goal label stays out of the way.
+  const short = task.recurrenceId ? null : project ? `Moves ${project.title} forward` : `Supports “${goal.title}”`
   const reasons = reason('goal', 4, short, `It moves you toward ${goal.title}.`)
 
   // Phase 2: the goal's own importance and target date add context.
   if (goal.importance === 'high')
-    reasons.push(...reason('goal-important', 3, `High-impact goal`, `${goal.title} is one of your important goals.`))
+    reasons.push(
+      ...reason(
+        'goal-important',
+        3,
+        goal.kind === 'ongoing' ? 'Part of an important ongoing goal' : 'High-impact goal',
+        `${goal.title} is one of your important goals.`,
+      ),
+    )
   if (goal.importance === 'low') reasons.push(...reason('goal-low', -1, null, null))
   if (goal.targetDate) {
     const days = daysBetween(ctx.today, goal.targetDate)
@@ -214,6 +224,29 @@ function effort(task: Task): Reason[] {
   return NONE
 }
 
+/**
+ * Routines are an extra signal, never a second priority system: a small nudge for being a
+ * commitment, and a bigger one only after it has been missed several times this week.
+ * One missed day adds nothing.
+ */
+function routine(task: Task, ctx: EngineContext): Reason[] {
+  if (!task.recurrenceId) return NONE
+  const series = ctx.state.series.find((s) => s.id === task.recurrenceId)
+  if (!series) return NONE
+  const out = reason('routine', 2.5, commitmentLabel(series.frequency), `It's part of a ${series.frequency} routine.`)
+  const missed = missedCount(ctx.state, series, ctx.today)
+  if (missed >= 3)
+    out.push(
+      ...reason(
+        'routine-missed',
+        3.5,
+        `Missed ${missed} times this week`,
+        `You've missed this ${series.frequency} commitment ${missed} times this week.`,
+      ),
+    )
+  return out
+}
+
 const FACTORS = [
   stalledProject,
   age,
@@ -221,6 +254,7 @@ const FACTORS = [
   consequence,
   urgency,
   alignment,
+  routine,
   userImportance,
   unblocking,
   plannedToday,
@@ -234,6 +268,7 @@ const OVERLAPS: string[][] = [
   ['user-high', 'impact'],
   ['overdue', 'due', 'milestone'],
   ['goal', 'momentum', 'stalled'],
+  ['routine', 'routine-missed'],
   ['goal-important', 'user-high', 'impact'],
   ['goal-target', 'overdue', 'due', 'milestone'],
 ]

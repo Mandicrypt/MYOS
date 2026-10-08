@@ -24,6 +24,12 @@ export function prepareImport(state: AppState): AppState {
   return {
     ...state,
     goals: state.goals.map((g) => ({ ...g, id: id(g.id) })),
+    series: state.series.map((x) => ({
+      ...x,
+      id: id(x.id),
+      projectId: maybe(x.projectId) ?? null,
+      goalId: maybe(x.goalId) ?? null,
+    })),
     projects: state.projects.map((p) => ({ ...p, id: id(p.id), goalId: maybe(p.goalId) ?? null })),
     milestones: state.milestones.map((m) => ({ ...m, id: id(m.id), projectId: id(m.projectId) })),
     tasks: state.tasks.map((t) => ({
@@ -33,6 +39,7 @@ export function prepareImport(state: AppState): AppState {
       goalId: maybe(t.goalId) ?? null,
       milestoneId: maybe(t.milestoneId) ?? null,
       parentId: maybe(t.parentId) ?? null,
+      recurrenceId: maybe(t.recurrenceId) ?? null,
       dependsOn: t.dependsOn.map(id),
       noteIds: [],
       checklist: t.checklist.map((c) => ({ ...c })),
@@ -52,6 +59,7 @@ export function prepareImport(state: AppState): AppState {
       reverses: maybe(e.reverses) ?? undefined,
       projectId: maybe(e.projectId) ?? null,
       goalId: maybe(e.goalId) ?? null,
+      recurrenceId: maybe(e.recurrenceId) ?? null,
     })),
     events: state.events.map((e) => ({
       ...e,

@@ -72,7 +72,13 @@ export function isPlanComplete(state: AppState, day: ISODate, dayOf: (iso: strin
 
 function toItem(r: RankedTask, status: PlanItem['status']): PlanItem {
   const why = r.why.filter((w) => w.long && w.weight > 0).map((w) => w.long as string)
-  return { task: r.task, reason: r.reasons[0] ?? 'Planned for today', why, minutes: minutesOf(r.task), status }
+  return {
+    task: r.task, // The two strongest reasons, like "Due today · Daily commitment".
+    reason: r.reasons.slice(0, 2).join(' · ') || 'Planned for today',
+    why,
+    minutes: minutesOf(r.task),
+    status,
+  }
 }
 
 export function planDay(state: AppState, today: ISODate): DailyPlan {

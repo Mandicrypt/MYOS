@@ -8,7 +8,10 @@ import { addDays } from '@/lib/dates'
 import { useStore } from '@/store/store'
 import { X } from 'lucide-react'
 import { wouldCreateCycle } from '@/engine/relations'
+import { describeRule, deviceTimeZone } from '@/engine/recurrence'
 import type { Task, UserImportance } from '@/types'
+import { draftFromRule, ruleFromDraft, type RepeatDraft } from './repeat-draft'
+import { RepeatSection } from './RepeatSection'
 
 type When = 'today' | 'tomorrow' | 'later' | 'date'
 
@@ -38,6 +41,12 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
   const navigate = useNavigate()
   const [draft, setDraft] = useState<Task>(task)
   const [when, setWhen] = useState<When>(() => whenOf(task, today))
+  // Recurring tasks: edit just this occurrence, or the whole series.
+  const series = task.recurrenceId ? state.series.find((s) => s.id === task.recurrenceId) : undefined
+  const [scope, setScope] = useState<'occurrence' | 'series'>('occurrence')
+  const [repeat, setRepeat] = useState<RepeatDraft>(() => draftFromRule(series ?? null, today))
+  const [timezone, setTimezone] = useState<string | undefined>(series?.timezone)
+  const editingSeries = series !== undefined && scope === 'series'
 
   const set = <K extends keyof Task>(key: K, value: Task[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -51,17 +60,43 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
             ? null
             : (draft.plannedFor ?? addDays(today, 2))
     const { dependsOn, ...rest } = draft
+    const title = draft.title.trim() || 'Untitled task'
     dispatch({
       type: 'task/update',
       id: draft.id,
       source: 'editor',
-      patch: { ...rest, title: draft.title.trim() || 'Untitled task', plannedFor },
+      patch: { ...rest, title, plannedFor },
     })
     // Dependency changes go through their own actions so they are recorded.
     for (const on of dependsOn.filter((d) => !task.dependsOn.includes(d)))
       dispatch({ type: 'task/depend', id: draft.id, on, source: 'editor' })
     for (const on of task.dependsOn.filter((d) => !dependsOn.includes(d)))
       dispatch({ type: 'task/undepend', id: draft.id, on, source: 'editor' })
+    const rule = ruleFromDraft(repeat)
+    if (!series) {
+      // An ordinary task chosen to repeat becomes the first occurrence of a new series.
+      if (rule) dispatch({ type: 'series/create', fromTaskId: draft.id, rule, source: 'editor' })
+    } else if (editingSeries) {
+      if (!rule) dispatch({ type: 'series/stop', id: series.id, source: 'editor' })
+      else
+        dispatch({
+          type: 'series/update',
+          id: series.id,
+          source: 'editor',
+          patch: {
+            template: {
+              title,
+              description: draft.description,
+              projectId: draft.projectId,
+              goalId: draft.goalId,
+              effortMinutes: draft.effortMinutes,
+              signals: draft.signals,
+            },
+            rule,
+            timezone,
+          },
+        })
+    }
     close()
   }
 
@@ -85,6 +120,31 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
           placeholder="Anything that helps you get it done"
         />
       </Field>
+
+      {series ? (
+        <div className="rounded-xl bg-bg px-4 py-3">
+          <p className="text-base">
+            <span className="text-muted">Repeats </span>
+            {describeRule(series)}
+          </p>
+          <div className="mt-2.5">
+            <Segmented<'occurrence' | 'series'>
+              label="Apply changes to"
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: 'occurrence', label: 'This occurrence' },
+                { value: 'series', label: 'Entire series' },
+              ]}
+            />
+          </div>
+          <p className="mt-2 text-sm text-muted">
+            {scope === 'occurrence'
+              ? `Only ${draft.occurrenceDate ?? 'this day'} changes. Earlier days stay as they were.`
+              : 'Today and later days change. Earlier days stay as they were.'}
+          </p>
+        </div>
+      ) : null}
 
       <div>
         <span className="mb-1.5 block text-sm text-muted">When</span>
@@ -128,14 +188,21 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
               ))}
           </select>
         </Field>
-        <Field label="Deadline">
-          <input
-            type="date"
-            className={inputClass}
-            value={draft.dueOn ?? ''}
-            onChange={(e) => set('dueOn', e.target.value || null)}
-          />
-        </Field>
+        {series ? (
+          <div>
+            <span className="mb-1.5 block text-sm text-muted">Deadline</span>
+            <p className="flex h-10 items-center text-base text-muted">Due on its day</p>
+          </div>
+        ) : (
+          <Field label="Deadline">
+            <input
+              type="date"
+              className={inputClass}
+              value={draft.dueOn ?? ''}
+              onChange={(e) => set('dueOn', e.target.value || null)}
+            />
+          </Field>
+        )}
       </div>
 
       <div>
@@ -168,6 +235,22 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
           <option value="240">Half a day or more</option>
         </select>
       </Field>
+
+      {!series || editingSeries ? (
+        <RepeatSection value={repeat} onChange={setRepeat} today={today} existing={Boolean(series)} />
+      ) : null}
+      {editingSeries && series && timezone !== undefined && timezone !== deviceTimeZone() ? (
+        <p className="-mt-2 text-sm text-muted">
+          Days follow {timezone}.{' '}
+          <button
+            type="button"
+            className="rounded-sm text-accent-ink underline-offset-4 hover:underline"
+            onClick={() => setTimezone(deviceTimeZone())}
+          >
+            Use this device’s timezone
+          </button>
+        </p>
+      ) : null}
 
       <div>
         <span className="mb-1.5 block text-sm text-muted">Can't start until</span>

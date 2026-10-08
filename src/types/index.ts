@@ -28,7 +28,8 @@ export type ImportanceSignals = {
 export type ChecklistItem = { id: ID; text: string; done: boolean }
 export type TaskLink = { label: string; url: string }
 
-export type TaskStatus = 'open' | 'done'
+/** `skipped`: a recurring occurrence the user chose to skip. Kept as history, earns nothing. */
+export type TaskStatus = 'open' | 'done' | 'skipped'
 
 /** How a task came to exist. Lets future scoring spot split or bulk-created work. */
 export type TaskOrigin = 'user' | 'inbox' | 'sample'
@@ -64,10 +65,49 @@ export type Task = {
   origin: TaskOrigin
   /** If this task was split out of a bigger one. Reserved for anti-gaming later. */
   parentId: ID | null
+  /**
+   * Recurring tasks: the series this task is one occurrence of, and the day it is for.
+   * Both are null for a normal task (and are always set or cleared together).
+   */
+  recurrenceId: ID | null
+  occurrenceDate: ISODate | null
   createdAt: ISODateTime
   /** Set automatically whenever the task changes. Latest wins during sync. */
   updatedAt?: ISODateTime
   completedAt: ISODateTime | null
+}
+
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly'
+
+/**
+ * A recurring task: the rule and the template its occurrences are made from.
+ * Occurrences are ordinary Tasks (see Task.recurrenceId), created lazily.
+ */
+export type TaskSeries = {
+  id: ID
+  title: string
+  description?: string
+  projectId: ID | null
+  goalId: ID | null
+  effortMinutes: number | null
+  signals: ImportanceSignals
+  checklist: ChecklistItem[]
+  links: TaskLink[]
+  frequency: RecurrenceFrequency
+  /** Every N days / weeks / months. */
+  interval: number
+  /** Weekly only. 0 = Monday … 6 = Sunday. Empty means the weekday of `startsOn`. */
+  daysOfWeek: number[]
+  /** Monthly only. Months without this day use their last day. Null means the day of `startsOn`. */
+  dayOfMonth: number | null
+  startsOn: ISODate
+  endsOn: ISODate | null
+  /** IANA timezone the dates belong to, e.g. "Africa/Lagos". */
+  timezone: string
+  /** Stopped series keep their history but make no new occurrences. */
+  active: boolean
+  createdAt: ISODateTime
+  updatedAt?: ISODateTime
 }
 
 export type ProjectStatus = 'active' | 'paused' | 'done'
@@ -95,6 +135,9 @@ export type Milestone = {
 
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type GoalImportance = 'low' | 'normal' | 'high'
+/** A finite goal finishes (target date, progress). An ongoing goal is kept up (routines, consistency). */
+export type GoalKind = 'finite' | 'ongoing'
+export type GoalCadence = 'daily' | 'weekly' | 'monthly' | 'custom'
 
 export type Goal = {
   id: ID
@@ -103,7 +146,14 @@ export type Goal = {
   why: string
   status: GoalStatus
   importance: GoalImportance
+  /** Defaults to finite. Existing goals are finite. */
+  kind: GoalKind
+  /** Finite goals only. Always null for ongoing goals. */
   targetDate: ISODate | null
+  /** Ongoing goals only: how often the routine is meant to happen. */
+  cadence: GoalCadence | null
+  /** Ongoing goals only: an optional end. Null means it never ends. */
+  endsOn: ISODate | null
   completedAt: ISODateTime | null
   archivedAt: ISODateTime | null
   createdAt: ISODateTime
@@ -164,6 +214,13 @@ export type WorkEvent = {
   projectId?: ID | null
   goalId?: ID | null
   scoringVersion?: number
+  /**
+   * For completed recurring occurrences: which occurrence this was (so deleting and
+   * recreating it can never earn twice), and the date in the series' timezone when it was done.
+   */
+  recurrenceId?: ID | null
+  occurrenceDate?: ISODate | null
+  localDay?: ISODate | null
   /** When the server stored it (set by the database, never by a device). Only on synced events. */
   receivedAt?: ISODateTime
 }
@@ -188,6 +245,12 @@ export type UserEventType =
   | 'task.dependency_removed'
   | 'task.unblocked'
   | 'task.deleted'
+  /** Recurring tasks. `taskId` is the occurrence, or the series for series-level events. */
+  | 'occurrence.skipped'
+  | 'series.created'
+  | 'series.updated'
+  | 'series.stopped'
+  | 'series.deleted'
   /** Weekly Review: the user accepted or turned down a recommended priority. */
   | 'recommendation.accepted'
   | 'recommendation.rejected'
@@ -230,6 +293,7 @@ export type Settings = {
 export type AppState = {
   version: number
   goals: Goal[]
+  series: TaskSeries[]
   projects: Project[]
   milestones: Milestone[]
   tasks: Task[]

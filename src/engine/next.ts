@@ -1,3 +1,4 @@
+import { isMissedOccurrence } from './routines'
 import { daysBetween } from '@/lib/dates'
 import type { AppState, ID, ISODate, Task } from '@/types'
 import { engine } from './importance'
@@ -16,6 +17,8 @@ export type NextSuggestion = {
  */
 export function isForToday(task: Task, today: ISODate): boolean {
   if (task.status !== 'open') return false
+  // Yesterday's recurring task isn't carried into today: today has its own.
+  if (isMissedOccurrence(task, today)) return false
   if (task.plannedFor) return task.plannedFor <= today
   return Boolean(task.dueOn && task.dueOn <= today)
 }
@@ -36,7 +39,7 @@ export function isDeferred(task: Task, today: ISODate): boolean {
 export function suggestable(state: AppState, today: ISODate): RankedTask[] {
   return engine
     .rank(
-      state.tasks.filter((t) => t.status === 'open' && !isDeferred(t, today)),
+      state.tasks.filter((t) => t.status === 'open' && !isDeferred(t, today) && !isMissedOccurrence(t, today)),
       { state, today },
     )
     .filter((r) => !r.blocked && !r.suppressed)

@@ -10,8 +10,22 @@ export const STATUS_LABEL: Record<Goal['status'], string> = {
 }
 
 /** "Target 31 Dec" / "Target Friday" / "Target passed 3 Oct". */
+export const CADENCE_LABEL: Record<NonNullable<Goal['cadence']>, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  custom: 'Custom',
+}
+
+/** "Ongoing · Daily", or the target date for a finite goal. */
+export function kindLabel(goal: Goal): string | null {
+  return goal.kind === 'ongoing'
+    ? ['Ongoing', goal.cadence ? CADENCE_LABEL[goal.cadence] : null].filter(Boolean).join(' · ')
+    : null
+}
+
 export function targetLabel(goal: Goal, today: ISODate): string | null {
-  if (!goal.targetDate) return null
+  if (goal.kind === 'ongoing' || !goal.targetDate) return null
   const days = daysToTarget(goal, today) ?? 0
   const date = parseISODate(goal.targetDate).toLocaleDateString(undefined, {
     day: 'numeric',

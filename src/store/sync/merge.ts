@@ -57,6 +57,7 @@ export function mergeStates(local: AppState, cloud: AppState, base: AppState | n
     goals: mergeList(local.goals, cloud.goals, base?.goals ?? null),
     projects: mergeList(local.projects, cloud.projects, base?.projects ?? null),
     milestones: mergeList(local.milestones, cloud.milestones, base?.milestones ?? null),
+    series: mergeList(local.series, cloud.series, base?.series ?? null),
     tasks: mergeList(local.tasks, cloud.tasks, base?.tasks ?? null),
     inbox: mergeList(local.inbox, cloud.inbox, base?.inbox ?? null).sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),

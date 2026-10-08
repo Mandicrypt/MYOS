@@ -1,3 +1,5 @@
+import { describeRule } from '@/engine/recurrence'
+import { isMissedOccurrence } from '@/engine/routines'
 import { useUi } from '@/app/ui-context'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { addDays, friendlyDay } from '@/lib/dates'
@@ -25,6 +27,9 @@ export function TaskRow({ task, hideProject, reason }: TaskRowProps) {
   const waiting = done ? null : waitingReason(state, task)
 
   const meta: string[] = []
+  const series = task.recurrenceId ? state.series.find((s) => s.id === task.recurrenceId) : undefined
+  const skipped = task.status === 'skipped'
+  const missed = isMissedOccurrence(task, today)
   if (!hideProject && project) meta.push(project.title)
   if (waiting) meta.push(waiting)
   else if (reason) meta.push(reason)
@@ -33,6 +38,9 @@ export function TaskRow({ task, hideProject, reason }: TaskRowProps) {
     meta.push(`Planned ${friendlyDay(task.plannedFor, today)}`)
   if (!done && task.signals.userImportance === 'high' && !reason) meta.push('Important')
   if (!done && task.suppressed) meta.push('Not suggested')
+  if (series) meta.push(describeRule(series))
+  if (skipped) meta.push('Skipped')
+  if (missed && task.occurrenceDate) meta.push(`Missed ${friendlyDay(task.occurrenceDate, today)}`)
 
   return (
     <li className="group flex items-start gap-3.5 py-3">

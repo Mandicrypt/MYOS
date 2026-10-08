@@ -1,3 +1,4 @@
+import { describeRule } from '@/engine/recurrence'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -171,7 +172,11 @@ export function ReviewPage() {
                             : 'text-base whitespace-nowrap text-muted'
                         }
                       >
-                        {g.change > 0 ? `↑ ${g.change}%` : 'No change'}
+                        {g.consistency
+                          ? `${g.consistency.complete} of ${g.consistency.of} days`
+                          : g.change > 0
+                            ? `↑ ${g.change}%`
+                            : 'No change'}
                         {g.completedThisWeek ? ' · Completed' : ''}
                       </span>
                     </div>
@@ -199,6 +204,28 @@ export function ReviewPage() {
                   </Button>
                 </div>
               )}
+            </Section>
+          ) : null}
+
+          {week.routines.length ? (
+            <Section title="Routines">
+              <ul className="divide-y divide-line">
+                {week.routines.map((r) => (
+                  <li key={r.series.id} className="flex items-baseline justify-between gap-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="text-base">{r.series.title}</p>
+                      <p className="mt-0.5 text-sm text-muted">
+                        {[describeRule(r.series), r.skipped ? `${r.skipped} skipped` : null]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                    <span className="text-base whitespace-nowrap tabular-nums">
+                      {r.done} / {r.expected}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </Section>
           ) : null}
 

@@ -12,7 +12,7 @@ import { useTaskActions } from './useTaskActions'
 export function TaskActionsMenu({ task }: { task: Task }) {
   const navigate = useNavigate()
   const { today } = useStore()
-  const { editTask, askWaiting } = useUi()
+  const { editTask, askWaiting, askRemove } = useUi()
   const actions = useTaskActions('menu')
   const forToday = isForToday(task, today)
   const forTomorrow = task.plannedFor === addDays(today, 1)
@@ -62,10 +62,23 @@ export function TaskActionsMenu({ task }: { task: Task }) {
             )}
           </>
         ) : null}
-        <MenuSeparator />
-        <MenuItem danger onSelect={() => actions.remove(task.id)}>
-          Remove
-        </MenuItem>
+        {open && task.recurrenceId ? (
+          <>
+            <MenuSeparator />
+            <MenuItem onSelect={() => actions.skipOccurrence(task.id)}>Skip this occurrence</MenuItem>
+          </>
+        ) : null}
+        {/* Finished and skipped days of a routine are history, so they can't be removed. */}
+        {!task.recurrenceId || open ? <MenuSeparator /> : null}
+        {!task.recurrenceId ? (
+          <MenuItem danger onSelect={() => actions.remove(task.id)}>
+            Remove
+          </MenuItem>
+        ) : open ? (
+          <MenuItem danger onSelect={() => askRemove(task.id)}>
+            Remove…
+          </MenuItem>
+        ) : null}
       </MenuContent>
     </Menu>
   )

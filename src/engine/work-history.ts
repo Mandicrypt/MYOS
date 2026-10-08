@@ -32,7 +32,7 @@ export function netPoints(events: WorkEvent[]): number {
  * that is done again.
  */
 export function reconcileWorkLog(
-  tasks: { id: string; status: 'open' | 'done' }[],
+  tasks: { id: string; status: 'open' | 'done' | 'skipped' }[],
   log: WorkEvent[],
   makeId: () => string,
   at: string,
@@ -40,7 +40,7 @@ export function reconcileWorkLog(
   const additions: WorkEvent[] = []
   for (const task of tasks) {
     const active = activeCreditFor(log, task.id)
-    if (task.status === 'open' && active) {
+    if (task.status !== 'done' && active) {
       additions.push({
         ...active,
         id: makeId(),

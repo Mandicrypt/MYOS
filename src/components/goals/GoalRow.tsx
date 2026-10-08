@@ -4,7 +4,8 @@ import { ProgressLine } from '@/components/ui/ProgressLine'
 import { nextTaskForGoal } from '@/store/selectors'
 import { useStore } from '@/store/store'
 import type { Goal } from '@/types'
-import { targetLabel } from './goal-labels'
+import { goalConsistency } from '@/engine/routines'
+import { kindLabel, targetLabel } from './goal-labels'
 
 /** One goal in the list: what it is, how far along, and what's moving it. */
 export function GoalRow({ goal }: { goal: Goal }) {
@@ -12,7 +13,10 @@ export function GoalRow({ goal }: { goal: Goal }) {
   const progress = goalProgress(state, goal.id)
   const projects = projectsForGoal(state, goal.id).filter((p) => p.status !== 'done')
   const next = goal.status === 'active' ? nextTaskForGoal(state, goal.id, today) : null
+  const ongoing = goal.kind === 'ongoing'
+  const consistency = ongoing ? goalConsistency(state, goal.id, today) : null
   const meta = [
+    kindLabel(goal),
     goal.importance === 'high' ? 'Important' : null,
     targetLabel(goal, today),
     projects.length ? `${projects.length} project${projects.length === 1 ? '' : 's'}` : null,
@@ -26,7 +30,22 @@ export function GoalRow({ goal }: { goal: Goal }) {
       >
         <span className="block text-lg font-medium tracking-[-0.015em]">{goal.title}</span>
         {meta.length ? <span className="mt-1 block text-sm text-muted">{meta.join(' · ')}</span> : null}
-        {progress.total ? (
+        {consistency ? (
+          <span className="mt-3 block text-sm text-muted tabular-nums">
+            {consistency.activeRoutines === 0
+              ? 'No routines yet'
+              : [
+                  consistency.today.total
+                    ? `Today ${consistency.today.done} of ${consistency.today.total}`
+                    : 'Nothing due today',
+                  consistency.streak
+                    ? `Streak ${consistency.streak} ${consistency.streak === 1 ? 'day' : 'days'}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+          </span>
+        ) : progress.total ? (
           <span className="mt-4 flex items-center gap-3">
             <ProgressLine percent={progress.percent ?? 0} className="max-w-48" />
             <span className="text-sm whitespace-nowrap text-muted tabular-nums">
@@ -36,7 +55,7 @@ export function GoalRow({ goal }: { goal: Goal }) {
         ) : (
           <span className="mt-3 block text-sm text-muted">No linked work yet</span>
         )}
-        {next ? <span className="mt-2 block text-sm text-muted">Next: {next.title}</span> : null}
+        {next && !ongoing ? <span className="mt-2 block text-sm text-muted">Next: {next.title}</span> : null}
       </Link>
     </li>
   )

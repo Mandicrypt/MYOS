@@ -11,6 +11,7 @@ export function TasksPage() {
   const { state, today } = useStore()
   const groups = selectTaskGroups(state, today)
   const [showDone, setShowDone] = useState(false)
+  const [showMissed, setShowMissed] = useState(false)
 
   return (
     <>
@@ -37,6 +38,24 @@ export function TasksPage() {
           <Section title="Later">
             <TaskList items={groups.later} />
           </Section>
+        ) : null}
+
+        {groups.missed.length ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowMissed((s) => !s)}
+              aria-expanded={showMissed}
+              className="rounded-md text-base text-muted hover:text-ink"
+            >
+              {showMissed ? 'Hide' : 'Show'} {groups.missed.length} missed from routines
+            </button>
+            {showMissed ? (
+              <div className="fade mt-2">
+                <TaskList items={groups.missed} />
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {groups.waiting.length ? (

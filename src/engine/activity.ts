@@ -26,6 +26,8 @@ export type Award = {
   label: string
   /** Why points were reduced or withheld, if they were. */
   note?: string
+  /** A recurring occurrence (identified by series and date, not by its task). */
+  recurring?: boolean
 }
 
 /**
@@ -52,41 +54,56 @@ export function allAwards(state: AppState, rules: ActivityRules = ACTIVITY_RULES
   for (const e of state.events)
     if (e.type === 'task.created' && e.taskId && !createdAt.has(e.taskId)) createdAt.set(e.taskId, e.at)
   const counted = new Set(credits.map((c) => c.taskId))
-  const firstCredit = new Map<ID, (typeof allCredits)[number]>()
-  for (const c of allCredits)
-    if (!firstCredit.has(c.taskId) || c.at < firstCredit.get(c.taskId)!.at) firstCredit.set(c.taskId, c)
-  for (const [taskId, c] of firstCredit) {
-    if (!counted.has(taskId)) continue // reopened and not finished again: nothing
+  // A recurring occurrence is one thing: this series on this date. Deleting and recreating it
+  // gives it a new task, but the same series and date, so it can never be rewarded twice.
+  const groupOf = (c: (typeof allCredits)[number]) =>
+    c.recurrenceId && c.occurrenceDate ? `occ:${c.recurrenceId}|${c.occurrenceDate}` : c.taskId
+  const countedGroups = new Set(credits.map(groupOf))
+  const firstCredit = new Map<string, (typeof allCredits)[number]>()
+  for (const c of allCredits) {
+    const g = groupOf(c)
+    if (!firstCredit.has(g) || c.at < firstCredit.get(g)!.at) firstCredit.set(g, c)
+  }
+  for (const [group, c] of firstCredit) {
+    if (!countedGroups.has(group)) continue // reopened and not finished again: nothing
+    const taskId = c.taskId
+    const recurring = group.startsWith('occ:')
     const impact = c.impact ?? state.tasks.find((t) => t.id === taskId)?.signals.impact ?? 3
     const important = impact >= 4 || (c.breakdown?.importance ?? 1) > 1
     const trivial = impact <= 2 && !important
     const base = important ? P.highPriorityTask : trivial ? P.trivialTask : P.task
     const created = createdAt.get(taskId)
-    const tooQuick = created !== undefined && minutesBetween(created, c.at) < L.minTaskAgeMinutes
+    // Occurrences are made by the schedule, not typed in, so "made a moment ago" doesn't apply to them.
+    const tooQuick = !recurring && created !== undefined && minutesBetween(created, c.at) < L.minTaskAgeMinutes
+    // An occurrence only counts on its own day: no ticking tomorrow's in advance, no backfilling last week's.
+    const wrongDay = recurring && (c.localDay ?? utcDay(c.at)) !== c.occurrenceDate
     // When the server saw it (only known for synced events): claimed times far earlier don't count.
     const backdated = c.receivedAt !== undefined && hoursBetween(c.at, c.receivedAt) > L.maxBackdateHours
     raw.push({
-      id: `task:${taskId}`,
+      id: `task:${group}`,
       kind: 'task',
       at: c.at,
       day: utcDay(c.at),
       base,
-      points: tooQuick || backdated ? 0 : base,
+      points: tooQuick || backdated || wrongDay ? 0 : base,
+      recurring,
       label: c.taskTitle ?? state.tasks.find((t) => t.id === taskId)?.title ?? 'Task',
       note: backdated
         ? `Recorded more than ${L.maxBackdateHours} hours after it says it happened`
-        : tooQuick
-          ? `Completed within ${L.minTaskAgeMinutes} minutes of creating it`
-          : trivial
-            ? 'small task'
-            : undefined,
+        : wrongDay
+          ? 'Done on a different day than its date'
+          : tooQuick
+            ? `Completed within ${L.minTaskAgeMinutes} minutes of creating it`
+            : trivial
+              ? 'small task'
+              : undefined,
     })
   }
 
   // --- The same task title completed again on the same day earns once
   // (stops "delete it, recreate it, tick it again" farming).
   const titleSeen = new Set<string>()
-  for (const a of raw.filter((x) => x.kind === 'task').sort((x, y) => x.at.localeCompare(y.at))) {
+  for (const a of raw.filter((x) => x.kind === 'task' && !x.recurring).sort((x, y) => x.at.localeCompare(y.at))) {
     const key = `${a.day}|${normalTitle(a.label)}`
     if (titleSeen.has(key) && a.points > 0) {
       a.points = 0

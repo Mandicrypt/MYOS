@@ -99,6 +99,24 @@ export function useTaskActions(source: ActionSource = 'list') {
     [dispatch, toast, undoAction, meta],
   )
 
+  /** Skip one day of a routine. The routine carries on. */
+  const skipOccurrence = useCallback(
+    (id: ID) => {
+      dispatch({ type: 'occurrence/skip', id, ...meta(id) })
+      toast.show('Skipped. Tomorrow’s is still on.', undoAction)
+    },
+    [dispatch, toast, undoAction, meta],
+  )
+
+  /** Stop the whole routine: no more days. Finished days stay as history. */
+  const stopSeries = useCallback(
+    (seriesId: ID) => {
+      dispatch({ type: 'series/stop', id: seriesId, source })
+      toast.show('Stopped repeating', undoAction)
+    },
+    [dispatch, toast, undoAction, source],
+  )
+
   const remove = useCallback(
     (id: ID) => {
       dispatch({ type: 'task/delete', id, ...meta(id) })
@@ -108,6 +126,8 @@ export function useTaskActions(source: ActionSource = 'list') {
   )
 
   return {
+    skipOccurrence,
+    stopSeries,
     complete,
     reopen,
     plan,

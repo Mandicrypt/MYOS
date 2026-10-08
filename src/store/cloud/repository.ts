@@ -1,7 +1,15 @@
 import type { Row, TableRows } from './rows'
 
 /** Tables whose rows can be created, edited and deleted. Order matters for foreign keys. */
-export const MUTABLE_TABLES = ['goals', 'projects', 'milestones', 'tasks', 'inbox_items', 'notes'] as const
+export const MUTABLE_TABLES = [
+  'goals',
+  'projects',
+  'milestones',
+  'task_series',
+  'tasks',
+  'inbox_items',
+  'notes',
+] as const
 export type MutableTable = (typeof MUTABLE_TABLES)[number]
 
 /** Append-only tables. Rows are only ever added. */
@@ -32,8 +40,8 @@ export interface CloudRepository {
 
 export function emptyChangeSet(): ChangeSet {
   return {
-    upserts: { goals: [], projects: [], milestones: [], tasks: [], inbox_items: [], notes: [] },
-    deletes: { goals: [], projects: [], milestones: [], tasks: [], inbox_items: [], notes: [] },
+    upserts: { goals: [], projects: [], milestones: [], task_series: [], tasks: [], inbox_items: [], notes: [] },
+    deletes: { goals: [], projects: [], milestones: [], task_series: [], tasks: [], inbox_items: [], notes: [] },
     appends: { work_events: [], user_events: [] },
     settings: null,
     profileName: null,

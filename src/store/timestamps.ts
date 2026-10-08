@@ -28,6 +28,7 @@ export function stampChanges(prev: AppState, next: AppState, now: string = new D
     goals: stampList(prev.goals, next.goals, now),
     projects: stampList(prev.projects, next.projects, now),
     milestones: stampList(prev.milestones, next.milestones, now),
+    series: stampList(prev.series, next.series, now),
     tasks: stampList(prev.tasks, next.tasks, now),
     inbox: stampList(prev.inbox, next.inbox, now),
     notes: stampList(prev.notes, next.notes, now),

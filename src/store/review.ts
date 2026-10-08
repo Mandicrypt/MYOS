@@ -1,3 +1,4 @@
+import { goalDays, routinesForWeek, type RoutineWeek } from '@/engine/routines'
 import { goalProgressChange, tasksForGoal } from '@/engine/goals'
 import { goalIdOf } from '@/engine/relations'
 import { isForToday, suggestable } from '@/engine/next'
@@ -35,10 +36,14 @@ export type GoalWeek = {
   tasksCompleted: number
   /** Set when the goal was completed during this week. */
   completedThisWeek: boolean
+  /** Ongoing goals: days this week on which every routine was done, out of days that had any. */
+  consistency: { complete: number; of: number } | null
 }
 export type Recommendation = { ranked: RankedTask; decision: 'accepted' | 'rejected' | null }
 
 export type WeekReview = {
+  /** How each recurring task did this week. */
+  routines: RoutineWeek[]
   start: ISODate
   end: ISODate
   isCurrent: boolean
@@ -53,6 +58,11 @@ export type WeekReview = {
 }
 
 const RECOMMENDATIONS = 3
+
+function weekConsistency(state: AppState, goalId: ID, start: ISODate, end: ISODate, today: ISODate) {
+  const days = goalDays(state, goalId, start, end < today ? end : today, today).filter((d) => d.expected > 0)
+  return { complete: days.filter((d) => d.state === 'done').length, of: days.length }
+}
 const STALE_DAYS = 14
 
 export function selectWeekReview(state: AppState, start: ISODate, today: ISODate): WeekReview {
@@ -108,6 +118,7 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
         projectsWorked: new Set(goalCredits.map((c) => c.projectId).filter(Boolean)).size,
         tasksCompleted: goalCredits.length,
         completedThisWeek: Boolean(goal.completedAt && goal.completedAt >= from && goal.completedAt < to),
+        consistency: goal.kind === 'ongoing' ? weekConsistency(state, goal.id, start, end, today) : null,
       }
     })
     .filter((g) => g.goal.status === 'active' || g.completedThisWeek || g.tasksCompleted > 0 || g.change > 0)
@@ -117,7 +128,7 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
   if (isCurrent) {
     const recent = countedCredits(state.workEvents).filter((e) => daysBetween(e.at.slice(0, 10), today) <= STALE_DAYS)
     const open = state.tasks.filter((t) => t.status === 'open')
-    for (const t of open.filter((t) => t.dueOn && t.dueOn < today)) {
+    for (const t of open.filter((t) => !t.recurrenceId && t.dueOn && t.dueOn < today)) {
       attention.push({
         key: `overdue-${t.id}`,
         title: t.title,
@@ -198,7 +209,8 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
       completed: byTask.size,
       created: createdIds.size,
       overdue: isCurrent
-        ? state.tasks.filter((t: Task) => t.status === 'open' && t.dueOn !== null && t.dueOn < today).length
+        ? state.tasks.filter((t: Task) => t.status === 'open' && !t.recurrenceId && t.dueOn !== null && t.dueOn < today)
+            .length
         : null,
       projectsWorked: new Set([...byTask.values()].map((c) => c.projectId).filter(Boolean)).size,
       goalsMoved: goals.filter((g) => g.change > 0 || g.tasksCompleted > 0).length,
@@ -206,6 +218,7 @@ export function selectWeekReview(state: AppState, start: ISODate, today: ISODate
     completed,
     attention,
     goals,
+    routines: routinesForWeek(state, start, today),
     recommendations,
     nextWeekStart,
   }

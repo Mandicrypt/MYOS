@@ -30,11 +30,14 @@ export type GoalProgress = {
  * so "how much moved this week" is a fair comparison.
  */
 export function goalProgress(state: AppState, goalId: ID, asOf?: string): GoalProgress {
-  const tasks = tasksForGoal(state, goalId)
+  // Routines repeat, so they don't count toward finishing a goal. Their consistency is shown instead.
+  const tasks = tasksForGoal(state, goalId).filter((t) => !t.recurrenceId)
+  const goal = state.goals.find((g) => g.id === goalId)
   const done = tasks.filter(
     (t) => t.status === 'done' && (!asOf || (t.completedAt !== null && t.completedAt < asOf)),
   ).length
-  return { done, total: tasks.length, percent: tasks.length ? Math.round((done / tasks.length) * 100) : null }
+  const finite = goal?.kind !== 'ongoing'
+  return { done, total: tasks.length, percent: finite && tasks.length ? Math.round((done / tasks.length) * 100) : null }
 }
 
 /** How many percentage points a goal moved between two moments. */

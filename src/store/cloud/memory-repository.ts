@@ -50,6 +50,7 @@ export class MemoryRepository implements CloudRepository {
         goals: new Map(),
         projects: new Map(),
         milestones: new Map(),
+        task_series: new Map(),
         tasks: new Map(),
         inbox_items: new Map(),
         notes: new Map(),
@@ -70,6 +71,7 @@ export class MemoryRepository implements CloudRepository {
       goals: read(t.goals),
       projects: read(t.projects),
       milestones: read(t.milestones),
+      task_series: read(t.task_series),
       tasks: read(t.tasks),
       inbox_items: read(t.inbox_items),
       notes: read(t.notes),
@@ -90,6 +92,13 @@ export class MemoryRepository implements CloudRepository {
       for (const row of changes.appends[table])
         if (!t[table].has(row.id as string)) t[table].set(row.id as string, { ...row })
     for (const table of MUTABLE_TABLES) for (const id of changes.deletes[table]) t[table].delete(id)
+    // Like the database trigger: occurrences of a deleted series are detached from it.
+    for (const id of changes.deletes.task_series)
+      for (const task of t.tasks.values())
+        if (task.recurrence_id === id) {
+          task.recurrence_id = null
+          task.occurrence_date = null
+        }
     // Like "on delete set null": rows pointing at a deleted task lose that link.
     for (const id of changes.deletes.tasks)
       for (const note of t.notes.values()) if (note.task_id === id) note.task_id = null
@@ -105,6 +114,9 @@ export class MemoryRepository implements CloudRepository {
     const refs: [keyof Tables, string, keyof Tables][] = [
       ['projects', 'goal_id', 'goals'],
       ['milestones', 'project_id', 'projects'],
+      ['task_series', 'project_id', 'projects'],
+      ['task_series', 'goal_id', 'goals'],
+      ['tasks', 'recurrence_id', 'task_series'],
       ['tasks', 'project_id', 'projects'],
       ['tasks', 'goal_id', 'goals'],
       ['tasks', 'milestone_id', 'milestones'],
@@ -112,6 +124,15 @@ export class MemoryRepository implements CloudRepository {
       ['notes', 'goal_id', 'goals'],
       ['notes', 'task_id', 'tasks'],
     ]
+    // Like the database's unique rule: one occurrence per series per day.
+    const seen = new Set<string>()
+    for (const row of t.tasks.values()) {
+      if (row.recurrence_id == null) continue
+      const key = `${row.recurrence_id}|${row.occurrence_date}`
+      if (seen.has(key))
+        throw new Error('tasks: duplicate key value violates unique constraint "tasks_occurrence_unique"')
+      seen.add(key)
+    }
     for (const [table, column, target] of refs) {
       for (const row of changes.upserts[table as MutableTable] ?? []) {
         if (missing(target, row[column])) {

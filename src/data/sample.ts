@@ -38,11 +38,14 @@ export function buildSampleState(): AppState {
     postponeCount: 0,
     origin: 'sample',
     parentId: null,
+    recurrenceId: null,
+    occurrenceDate: null,
     ...t,
   })
 
   return {
-    version: 3,
+    version: 4,
+    series: [],
     settings: { name: 'Izuchukwu', showMeaningfulWork: true, theme: 'system', dailyMinutes: 240 },
     goals: [
       {
@@ -53,6 +56,9 @@ export function buildSampleState(): AppState {
         importance: 'high',
         targetDate: day(30),
         completedAt: null,
+        kind: 'finite',
+        cadence: null,
+        endsOn: null,
         archivedAt: null,
         createdAt: created,
       },
@@ -64,6 +70,9 @@ export function buildSampleState(): AppState {
         importance: 'normal',
         targetDate: null,
         completedAt: null,
+        kind: 'finite',
+        cadence: null,
+        endsOn: null,
         archivedAt: null,
         createdAt: created,
       },
@@ -75,6 +84,9 @@ export function buildSampleState(): AppState {
         importance: 'normal',
         targetDate: day(60),
         completedAt: null,
+        kind: 'finite',
+        cadence: null,
+        endsOn: null,
         archivedAt: null,
         createdAt: created,
       },

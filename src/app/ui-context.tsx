@@ -7,6 +7,9 @@ type UiValue = {
   editingTaskId: ID | null
   editTask: (id: ID | null) => void
   /** Task whose "waiting for" question is open. */
+  /** A recurring task the user asked to remove. We ask: just this day, or the whole routine? */
+  removingTaskId: ID | null
+  askRemove: (id: ID | null) => void
   waitingTaskId: ID | null
   askWaiting: (id: ID | null) => void
   searchOpen: boolean
@@ -21,6 +24,7 @@ const UiContext = createContext<UiValue | null>(null)
 export function UiProvider({ children }: { children: ReactNode }) {
   const [editingTaskId, editTask] = useState<ID | null>(null)
   const [waitingTaskId, askWaiting] = useState<ID | null>(null)
+  const [removingTaskId, askRemove] = useState<ID | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [quickAdd, setQuickAdd] = useState<UiValue['quickAdd']>({ open: false, kind: 'task' })
 
@@ -51,6 +55,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
       value={{
         editingTaskId,
         editTask,
+        removingTaskId,
+        askRemove,
         waitingTaskId,
         askWaiting,
         searchOpen,

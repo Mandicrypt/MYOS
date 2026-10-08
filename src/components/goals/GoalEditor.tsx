@@ -5,7 +5,7 @@ import { Field, Segmented, inputClass } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { newId } from '@/lib/id'
 import { useStore } from '@/store/store'
-import type { Goal, GoalImportance } from '@/types'
+import type { Goal, GoalCadence, GoalImportance, GoalKind } from '@/types'
 
 /** Create a goal, or edit one. Title, description, importance and target date. */
 export function GoalEditor({
@@ -31,11 +31,23 @@ function GoalForm({ goal, onDone }: { goal?: Goal; onDone: () => void }) {
   const [why, setWhy] = useState(goal?.why ?? '')
   const [importance, setImportance] = useState<GoalImportance>(goal?.importance ?? 'normal')
   const [targetDate, setTargetDate] = useState(goal?.targetDate ?? '')
+  const [kind, setKind] = useState<GoalKind>(goal?.kind ?? 'finite')
+  const [cadence, setCadence] = useState<GoalCadence>(goal?.cadence ?? 'daily')
+  const [endsOn, setEndsOn] = useState(goal?.endsOn ?? '')
 
   const save = () => {
     const clean = title.trim()
     if (!clean) return
-    const fields = { title: clean, why: why.trim(), importance, targetDate: targetDate || null }
+    // A finite goal has a target date; an ongoing one has a cadence and, optionally, an end. Never both.
+    const fields = {
+      title: clean,
+      why: why.trim(),
+      importance,
+      kind,
+      targetDate: kind === 'finite' ? targetDate || null : null,
+      cadence: kind === 'ongoing' ? cadence : null,
+      endsOn: kind === 'ongoing' ? endsOn || null : null,
+    }
     if (goal) dispatch({ type: 'goal/update', id: goal.id, patch: fields })
     else {
       const id = newId()
@@ -83,15 +95,61 @@ function GoalForm({ goal, onDone }: { goal?: Goal; onDone: () => void }) {
           ]}
         />
       </div>
-      <Field label="Target date" className="max-w-xs">
-        <input
-          type="date"
-          className={inputClass}
-          value={targetDate}
-          min={goal ? undefined : today}
-          onChange={(e) => setTargetDate(e.target.value)}
+      <div>
+        <span className="mb-1.5 block text-sm text-muted">Goal type</span>
+        <Segmented<GoalKind>
+          label="Goal type"
+          value={kind}
+          onChange={setKind}
+          options={[
+            { value: 'finite', label: 'Finite' },
+            { value: 'ongoing', label: 'Ongoing' },
+          ]}
         />
-      </Field>
+        <p className="mt-1.5 text-sm text-muted">
+          {kind === 'finite'
+            ? 'Something you finish, like launching a product.'
+            : 'Something you keep up, like posting every day. It never has to end.'}
+        </p>
+      </div>
+      {kind === 'ongoing' ? (
+        <>
+          <div>
+            <span className="mb-1.5 block text-sm text-muted">Cadence</span>
+            <Segmented<GoalCadence>
+              label="Cadence"
+              value={cadence}
+              onChange={setCadence}
+              options={[
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'custom', label: 'Custom' },
+              ]}
+            />
+          </div>
+          <Field label="Ends (optional)" className="max-w-xs">
+            <input
+              type="date"
+              className={inputClass}
+              value={endsOn}
+              min={today}
+              onChange={(e) => setEndsOn(e.target.value)}
+            />
+          </Field>
+        </>
+      ) : null}
+      {kind === 'finite' ? (
+        <Field label="Target date" className="max-w-xs">
+          <input
+            type="date"
+            className={inputClass}
+            value={targetDate}
+            min={goal ? undefined : today}
+            onChange={(e) => setTargetDate(e.target.value)}
+          />
+        </Field>
+      ) : null}
       <div className="flex justify-end gap-2 pt-1">
         <Button onClick={onDone}>Cancel</Button>
         <Button type="submit" variant="primary" disabled={!title.trim()}>

@@ -5,7 +5,9 @@ import { BackLink } from '@/components/layout/BackLink'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Section } from '@/components/layout/Section'
 import { GoalEditor } from '@/components/goals/GoalEditor'
-import { STATUS_LABEL, targetLabel } from '@/components/goals/goal-labels'
+import { kindLabel, STATUS_LABEL, targetLabel } from '@/components/goals/goal-labels'
+import { RoutineList, RoutineSummary } from '@/components/goals/RoutineSummary'
+import { useUi } from '@/app/ui-context'
 import { LinkedNotes } from '@/components/notes/LinkedNotes'
 import { AddTaskInline } from '@/components/tasks/AddTaskInline'
 import { TaskList } from '@/components/tasks/TaskList'
@@ -21,6 +23,7 @@ import type { GoalStatus } from '@/types'
 /** One goal: why it matters, how far along it is, and every piece of work that serves it. */
 export function GoalDetailPage() {
   const { goalId } = useParams()
+  const { editTask } = useUi()
   const { state, today, dispatch, undo } = useStore()
   const toast = useToast()
   const [editing, setEditing] = useState(false)
@@ -40,10 +43,13 @@ export function GoalDetailPage() {
   const projects = projectsForGoal(state, goal.id)
   const linkable = state.projects.filter((p) => p.goalId !== goal.id && p.status !== 'done')
   const goalTaskIds = new Set(tasksForGoal(state, goal.id).map((t) => t.id))
-  const open = rankOpen(state, today).filter((r) => goalTaskIds.has(r.task.id))
-  const done = state.tasks.filter((t) => goalTaskIds.has(t.id) && t.status === 'done')
+  // Recurring tasks have their own section, so they aren't listed a second time here.
+  const open = rankOpen(state, today).filter((r) => goalTaskIds.has(r.task.id) && !r.task.recurrenceId)
+  const done = state.tasks.filter((t) => goalTaskIds.has(t.id) && t.status === 'done' && !t.recurrenceId)
   const notes = state.notes.filter((n) => n.goalId === goal.id)
+  const ongoing = goal.kind === 'ongoing'
   const meta = [
+    kindLabel(goal),
     goal.status !== 'active' ? STATUS_LABEL[goal.status] : null,
     goal.importance === 'high' ? 'Important' : goal.importance === 'low' ? 'Less important' : null,
     targetLabel(goal, today),
@@ -95,8 +101,10 @@ export function GoalDetailPage() {
         </Menu>
       </header>
 
-      <section aria-label="Progress" className="mb-12">
-        {progress.total ? (
+      <section aria-label={ongoing ? 'Consistency' : 'Progress'} className="mb-12">
+        {ongoing ? (
+          <RoutineSummary goalId={goal.id} />
+        ) : progress.total ? (
           <>
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-md">{progress.percent}% done</span>
@@ -155,6 +163,14 @@ export function GoalDetailPage() {
             <p className="py-2 text-base text-muted">No projects yet. Create one with ⌘K, then link it here.</p>
           ) : null}
         </Section>
+
+        {ongoing ? (
+          <Section title="Recurring tasks">
+            <RoutineList goalId={goal.id} />
+            <AddTaskInline label="Add a recurring task" defaults={{ goalId: goal.id }} onAdd={(id) => editTask(id)} />
+            <p className="mt-1 text-sm text-muted">After adding it, choose Repeat in the window that opens.</p>
+          </Section>
+        ) : null}
 
         <Section title="Tasks">
           <TaskList items={open}>

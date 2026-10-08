@@ -1,3 +1,4 @@
+import { newId } from '@/lib/id'
 import { Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useStore } from '@/store/store'
@@ -7,10 +8,12 @@ import type { NewTask } from '@/store/reducer'
 type AddTaskInlineProps = {
   label?: string
   defaults?: Omit<NewTask, 'title'>
+  /** Called with the new task's id, e.g. to open it for editing. */
+  onAdd?: (id: string) => void
 }
 
 /** "+ Add something" that turns into a one-line input. Stays open for adding several. */
-export function AddTaskInline({ label = 'Add something', defaults }: AddTaskInlineProps) {
+export function AddTaskInline({ label = 'Add something', defaults, onAdd }: AddTaskInlineProps) {
   const { dispatch } = useStore()
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -39,7 +42,9 @@ export function AddTaskInline({ label = 'Add something', defaults }: AddTaskInli
         e.preventDefault()
         const title = text.trim()
         if (!title) return
-        dispatch({ type: 'task/add', task: { ...defaults, title } })
+        const id = newId()
+        dispatch({ type: 'task/add', id, task: { ...defaults, title } })
+        onAdd?.(id)
         setText('')
         toast.show('Added')
       }}
