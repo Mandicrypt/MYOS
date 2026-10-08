@@ -325,7 +325,7 @@ async function main() {
     delete g.targetDate
   }
   const upgraded = migrateSaved(v2 as never)!
-  check('version moves to 3', upgraded.version === 3)
+  check('version moves to the current version', upgraded.version === STATE_VERSION)
   check(
     'old task → note link becomes note → task',
     upgraded.notes.find((n) => n.id === 'n-principles')?.taskId === 't-blueprint',

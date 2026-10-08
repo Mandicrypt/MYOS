@@ -32,7 +32,8 @@ MYOS works in two modes:
 
 7. In **SQL Editor**, also run `supabase/migrations/002_wallets.sql` (wallet sign-in), then
    `supabase/migrations/003_goals_notes.sql` (Phase 2: goals and notes), then
-   `supabase/migrations/004_intelligence_rewards.sql` (Phase 3: rewards). All of them only add
+   `supabase/migrations/004_intelligence_rewards.sql` (Phase 3: rewards), then
+   `supabase/migrations/005_recurring_tasks.sql` (recurring tasks and ongoing goals). All of them only add
    things; they are safe to run on a database that already has data, and safe to run twice.
 
 By default Supabase asks new users to confirm their email. You can turn that off under
@@ -81,6 +82,7 @@ UI → actions → reducer → AppState → persistence layer ─┬─ this dev
 - `npm run check:engine` — checks the decision logic (ranking, dependencies, scoring, anti-gaming)
 - `npm run check:sync` — checks cloud sync with two simulated devices (no Supabase needed)
 - `npm run check:rewards` — checks scoring, anti-farming, multipliers, leaderboards, snapshots and wallet linking
+- `npm run check:recurrence` — checks recurring tasks, ongoing goals, their rewards rules, sync and timezones
 - `npm run check:token` — checks the token page settings (valid address, matching Buy link) and the Copy function
 
 ## How it's organised
@@ -144,6 +146,51 @@ balances and a price), real ZEC transfers, and server-side scoring. Until then, 
 app are calculated on your device for your information only. They are not authoritative.
 
 Database rule tests live in `supabase/tests/` (run on a fresh test database; every line must say ok). Run `npm run check:rewards` for the reward logic.
+
+## Recurring tasks and ongoing goals
+
+**A series and its occurrences.** A recurring task is a *series* (the rule, a template, a start and
+optional end, and a timezone). Each day it falls on is an *occurrence*: an ordinary task that points at
+its series and its date (`recurrenceId`, `occurrenceDate`). Completion, Focus, the Daily Plan, Rewards and
+Weekly Review all work on occurrences exactly as they do on any task. There is no second task system.
+The rule maths is in `src/engine/recurrence.ts`; making and changing series is in `src/store/recurring.ts`.
+
+**Occurrence ids and duplicates.** An occurrence's id is derived from its series id and its date
+(`deterministicId`), so every device that makes "Post on X, 8 Oct" makes the same row with the same
+timestamps. The database also allows one occurrence per series per day
+(`tasks_occurrence_unique`), and sync repair removes a duplicate if one ever appears.
+
+**Generated lazily.** Only a small window is made: the last 6 days (so missed days stay visible),
+today and tomorrow (`CATCH_UP_DAYS`, `LOOKAHEAD_DAYS`). Asking again changes nothing. Days that were
+completed once are never made again, even if the task was deleted.
+
+**This occurrence or the whole series.** Editing one occurrence changes only that day. "Entire series"
+changes the template and rule for today and later open days. Earlier, finished and skipped days never
+change. Skipping a day (status `skipped`) keeps it as history, earns nothing, and the series carries on.
+A missed day is not moved to today: it stays on its own date, under Missed on the Tasks page.
+
+**Ongoing and finite goals.** A goal is `finite` (target date, percentage) or `ongoing` (cadence,
+optional end, no target date, no percentage). An ongoing goal shows consistency worked out from real
+days: today, this week, current streak, last completed (`src/engine/routines.ts`). A day counts as done
+when every routine due that day is done. A skipped or missed day breaks the streak; days with nothing
+due are ignored. Routines don't count toward a finite goal's percentage.
+
+**Rewards.** An occurrence is rewarded once, identified by series and date (not by task id or title), so
+delete, recreate and complete can't earn twice. It only earns on its own day in the series' timezone
+(`localDay` on the work record), so ticking tomorrow's early or backfilling last week's earns nothing.
+Daily limits still apply. The Daily Plan, priorities and Weekly Review use the same engines; a routine
+adds a small "commitment" signal and, after 3 or more misses in a week, a "Missed N times" note.
+
+**Timezones.** Occurrence dates are calendar dates, not moments, so daylight saving can't move them.
+"Today" for a series is the date in the series' own timezone (stored on the series; it defaults to the
+device's). If you travel, edit the series and choose "Use this device's timezone".
+
+**Dependencies.** Occurrences start with no dependencies: "after that task" has no stable meaning for a
+task that repeats.
+
+**Checks.** `npm run check:recurrence` covers the date rules, generation, rewards, goals, sync between
+two devices, saved-data upgrades and timezones. `supabase/tests/005_recurring_rules.sql` checks the
+database rules (run on a fresh test database; every line must say ok).
 
 ## The MYOS Token page
 
