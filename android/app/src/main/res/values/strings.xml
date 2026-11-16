@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MYOS</string>
+    <string name="title_activity_main">MYOS</string>
+    <string name="package_name">site.myosapp.app</string>
+    <string name="custom_url_scheme">site.myosapp.app</string>
+    <string name="blocker_description">MYOS App Blocker. While a task is waiting, it shuts out the apps you chose to block and shows MYOS instead. It only reads which app is open. It never reads what is on your screen.</string>
+</resources>

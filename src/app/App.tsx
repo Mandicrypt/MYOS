@@ -9,6 +9,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { FocusPage } from '@/pages/FocusPage'
 import { GoalDetailPage } from '@/pages/GoalDetailPage'
 import { GoalsPage } from '@/pages/GoalsPage'
+import { DisciplinePage } from '@/pages/DisciplinePage'
 import { HomePage } from '@/pages/HomePage'
 import { InboxPage } from '@/pages/InboxPage'
 import { NoteEditorPage } from '@/pages/NoteEditorPage'
@@ -22,6 +23,7 @@ import { RewardsPage } from '@/pages/RewardsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TokenPage } from '@/pages/TokenPage'
+import { DisciplineSync } from '@/native/DisciplineSync'
 import { AuthGate } from '@/account/AuthGate'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { UiProvider } from './ui-context'
@@ -50,12 +52,14 @@ export function App() {
                   <Route path="notes" element={<NotesPage />} />
                   <Route path="notes/:noteId" element={<NoteEditorPage />} />
                   <Route path="rewards" element={<RewardsPage />} />
+                  <Route path="discipline" element={<DisciplinePage />} />
                   <Route path="token" element={<TokenPage />} />
                   <Route path="review" element={<ReviewPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Routes>
+              <DisciplineSync />
               <TaskEditor />
               <WaitingDialog />
               <RecurringRemoveDialog />
