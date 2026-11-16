@@ -11,6 +11,7 @@ import { scoreCompletion } from '@/engine/meaningful-work'
 import { suggestNext } from '@/engine/next'
 import { goalFor, projectFor, selectFocusTask, waitingReason } from '@/store/selectors'
 import { useStore } from '@/store/store'
+import { OpenAppButton } from '@/components/tasks/OpenAppButton'
 import type { Task } from '@/types'
 
 /** A full-screen space for one task. No sidebar, nothing unrelated. */
@@ -144,6 +145,8 @@ export function FocusPage() {
             {waiting}. You can still work on it.
           </p>
         ) : null}
+
+        <OpenAppButton task={task} />
 
         <div className="mt-10 space-y-10 border-t border-line pt-10">
           {why.length ? (

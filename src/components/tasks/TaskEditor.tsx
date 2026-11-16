@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUi } from '@/app/ui-context'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +9,8 @@ import { useStore } from '@/store/store'
 import { X } from 'lucide-react'
 import { wouldCreateCycle } from '@/engine/relations'
 import { describeRule, deviceTimeZone } from '@/engine/recurrence'
+import { isNativeApp, type PhoneApp } from '@/native/discipline'
+import { loadPhoneApps, saveTaskApp, useTaskAppId } from '@/native/phone-apps'
 import type { Task, UserImportance } from '@/types'
 import { draftFromRule, ruleFromDraft, type RepeatDraft } from './repeat-draft'
 import { RepeatSection } from './RepeatSection'
@@ -47,6 +49,21 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
   const [repeat, setRepeat] = useState<RepeatDraft>(() => draftFromRule(series ?? null, today))
   const [timezone, setTimezone] = useState<string | undefined>(series?.timezone)
   const editingSeries = series !== undefined && scope === 'series'
+  // The app this task uses (phone app only). Saved on this phone, not with the task.
+  const savedAppId = useTaskAppId(task)
+  const [appId, setAppId] = useState<string | null>(null)
+  const [phoneApps, setPhoneApps] = useState<PhoneApp[]>([])
+  useEffect(() => {
+    if (!isNativeApp) return
+    let cancelled = false
+    void loadPhoneApps().then((apps) => {
+      if (!cancelled) setPhoneApps(apps)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const chosenAppId = appId ?? savedAppId
 
   const set = <K extends keyof Task>(key: K, value: Task[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -97,6 +114,7 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
           },
         })
     }
+    if (isNativeApp && appId !== null && appId !== savedAppId) void saveTaskApp({ ...task, ...draft }, appId)
     close()
   }
 
@@ -170,6 +188,19 @@ function TaskEditorForm({ task, onClose: close }: { task: Task; onClose: () => v
           />
         ) : null}
       </div>
+
+      {isNativeApp ? (
+        <Field label="App for this task (optional)">
+          <select className={inputClass} value={chosenAppId} onChange={(e) => setAppId(e.target.value)}>
+            <option value="">No app</option>
+            {phoneApps.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Field label="Project">

@@ -10,6 +10,8 @@ export type DisciplineAlarm = {
   minute: number
   repeat: boolean
   taskId: string
+  /** Identifies the task's app link. See taskAppKey. */
+  appKey: string
   /** A daily alarm stays quiet on this day, because the task is already done. */
   skipDate: string
 }
@@ -37,6 +39,9 @@ type DisciplinePlugin = {
   complete(): Promise<void>
   getStatus(): Promise<DisciplineStatus>
   requestNotifications(): Promise<void>
+  setTaskApp(options: { key: string; appId: string }): Promise<void>
+  getTaskApps(): Promise<{ map: Record<string, string> }>
+  openApp(options: { id: string }): Promise<void>
   openSettings(options: { page: 'accessibility' | 'notifications' | 'battery' | 'fullscreen' | 'app' }): Promise<void>
 }
 
@@ -64,4 +69,16 @@ export function isTaskDone(tasks: Task[], taskId: string, today: ISODate): boole
   if (target === null) return true
   if (target === undefined) return false
   return target.status === 'done'
+}
+
+/**
+ * Names a task's app link. A repeating task keeps one link for the whole series.
+ * If the task became a series after the link was saved, the old link (by task id) is still found.
+ */
+export function taskAppKey(task: Task): string {
+  return task.recurrenceId ?? task.id
+}
+
+export function appIdFor(links: Record<string, string>, task: Task): string {
+  return links[taskAppKey(task)] ?? links[task.id] ?? ''
 }
