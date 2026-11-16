@@ -1,0 +1,65 @@
+name: Build Android APK
+
+# Runs by itself whenever Android files change, and you can also start it by hand
+# (GitHub > Actions > "Build Android APK" > Run workflow).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, android-apk]
+    paths:
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Build the web files (Capacitor needs the folder to exist)
+        run: npm run build
+
+      - name: Copy into the Android project
+        run: npx cap sync android
+
+      - name: Build the APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk MYOS.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MYOS-apk
+          path: MYOS.apk
+
+      # A direct download link you can open on your phone:
+      # github.com/Mandicrypt/MYOS/releases/tag/android-latest
+      - name: Publish the APK to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: MYOS Android (latest)
+          body: Download MYOS.apk below and open it on your phone.
+          files: MYOS.apk
+          prerelease: true

@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   Award,
   CalendarCheck,
   CircleDot,
@@ -24,6 +25,7 @@ export const mainNav: NavItem[] = [
   { label: 'Goals', to: '/goals', icon: Flag },
   { label: 'Notes', to: '/notes', icon: FileText },
   { label: 'Rewards', to: '/rewards', icon: Award },
+  { label: 'Discipline', to: '/discipline', icon: AlarmClock },
   { label: 'Weekly Review', to: '/review', icon: CalendarCheck },
 ]
 
