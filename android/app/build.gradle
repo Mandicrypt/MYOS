@@ -16,7 +16,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // One fixed signing key, so a new MYOS version installs over the old one.
+    // The build (GitHub) provides the key. Without it, Android uses a throwaway key.
+    signingConfigs {
+        myos {
+            if (System.getenv("MYOS_KEYSTORE")) {
+                storeFile file(System.getenv("MYOS_KEYSTORE"))
+                storePassword System.getenv("MYOS_KEYSTORE_PASSWORD")
+                keyAlias "myos"
+                keyPassword System.getenv("MYOS_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (System.getenv("MYOS_KEYSTORE")) {
+                signingConfig signingConfigs.myos
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

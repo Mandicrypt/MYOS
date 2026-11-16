@@ -39,6 +39,22 @@ jobs:
       - name: Copy into the Android project
         run: npx cap sync android
 
+      # The signing key lives only in the private secret MYOS_SIGNING (line 1: password, line 2: key).
+      - name: Prepare the signing key
+        env:
+          MYOS_SIGNING: ${{ secrets.MYOS_SIGNING }}
+        run: |
+          if [ -z "$MYOS_SIGNING" ]; then
+            echo "::warning::The MYOS_SIGNING secret is missing. This APK uses a throwaway key and cannot update an installed MYOS."
+            exit 0
+          fi
+          CLEAN=$(printf '%s\n' "$MYOS_SIGNING" | tr -d '\r' | sed '/^[[:space:]]*$/d')
+          PW=$(printf '%s\n' "$CLEAN" | head -n1)
+          echo "::add-mask::$PW"
+          printf '%s\n' "$CLEAN" | tail -n1 | base64 -d > "$RUNNER_TEMP/myos.jks"
+          echo "MYOS_KEYSTORE=$RUNNER_TEMP/myos.jks" >> "$GITHUB_ENV"
+          echo "MYOS_KEYSTORE_PASSWORD=$PW" >> "$GITHUB_ENV"
+
       - name: Build the APK
         working-directory: android
         run: |
