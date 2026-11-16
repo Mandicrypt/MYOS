@@ -16,6 +16,7 @@ public class AlarmReceiver extends BroadcastReceiver {
 
         JSONObject alarm = DisciplineStore.getAlarm(ctx, id);
         String taskId = alarm == null ? "" : alarm.optString("taskId", "");
+        String appKey = alarm == null ? "" : alarm.optString("appKey", "");
         if (alarm != null) {
             if (alarm.optBoolean("repeat", false)) {
                 // Daily alarm: set tomorrow's ring first.
@@ -31,6 +32,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         Intent service = new Intent(ctx, AlarmService.class);
         service.putExtra("id", id);
         service.putExtra("taskId", taskId);
+        service.putExtra("appKey", appKey);
         service.putExtra("label", label == null || label.isEmpty() ? "Time to do your task" : label);
         ContextCompat.startForegroundService(ctx, service);
     }

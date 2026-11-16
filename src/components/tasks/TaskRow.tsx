@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn'
 import { projectFor, waitingReason } from '@/store/selectors'
 import { useStore } from '@/store/store'
 import type { Task } from '@/types'
+import { OpenAppButton } from './OpenAppButton'
 import { TaskActionsMenu } from './TaskActionsMenu'
 import { useTaskActions } from './useTaskActions'
 
@@ -59,6 +60,7 @@ export function TaskRow({ task, hideProject, reason }: TaskRowProps) {
         </span>
         {meta.length ? <span className="mt-0.5 block text-sm text-muted">{meta.join(' · ')}</span> : null}
       </button>
+      <OpenAppButton task={task} compact />
       <span className="opacity-100 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
         <TaskActionsMenu task={task} />
       </span>

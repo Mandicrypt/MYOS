@@ -120,6 +120,49 @@ public class DisciplinePlugin extends Plugin {
         call.resolve();
     }
 
+    // ---- Task and app links ----
+
+    @PluginMethod
+    public void setTaskApp(PluginCall call) {
+        String key = call.getString("key");
+        if (key == null || key.isEmpty()) {
+            call.reject("Missing task key");
+            return;
+        }
+        DisciplineStore.setTaskApp(getContext(), key, call.getString("appId", ""));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void getTaskApps(PluginCall call) {
+        try {
+            JSObject result = new JSObject();
+            result.put("map", new JSObject(DisciplineStore.getTaskApps(getContext()).toString()));
+            call.resolve(result);
+        } catch (JSONException e) {
+            call.reject("Could not read the task apps");
+        }
+    }
+
+    /** Opens another app, like tapping its icon. */
+    @PluginMethod
+    public void openApp(PluginCall call) {
+        String id = call.getString("id");
+        Context ctx = getContext();
+        Intent intent = id == null ? null : ctx.getPackageManager().getLaunchIntentForPackage(id);
+        if (intent == null) {
+            call.reject("That app is not on this phone");
+            return;
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            ctx.startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Could not open that app");
+        }
+    }
+
     // ---- Alarms ----
 
     @PluginMethod
@@ -137,6 +180,7 @@ public class DisciplinePlugin extends Plugin {
             alarm.put("minute", call.getInt("minute", 0));
             alarm.put("repeat", call.getBoolean("repeat", false));
             alarm.put("taskId", call.getString("taskId", ""));
+            alarm.put("appKey", call.getString("appKey", ""));
             alarm.put("skipDate", "");
             DisciplineStore.putAlarm(getContext(), alarm);
             long at = DisciplineStore.schedule(getContext(), alarm);
@@ -204,6 +248,7 @@ public class DisciplinePlugin extends Plugin {
         DisciplineStore.setLocked(ctx, false);
         DisciplineStore.setActiveAlarm(ctx, "");
         DisciplineStore.setActiveTask(ctx, "");
+        DisciplineStore.setActiveAppKey(ctx, "");
         ctx.stopService(new Intent(ctx, AlarmService.class));
         call.resolve();
     }

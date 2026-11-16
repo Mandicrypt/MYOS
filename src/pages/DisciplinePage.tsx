@@ -13,9 +13,12 @@ import {
   isNativeApp,
   type DisciplineAlarm,
   type DisciplineStatus,
+  taskAppKey,
   type PhoneApp,
 } from '@/native/discipline'
+import { useTaskAppId } from '@/native/phone-apps'
 import { useStore } from '@/store/store'
+import type { Task } from '@/types'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -106,6 +109,7 @@ function DisciplineScreen() {
       minute,
       repeat: canRepeat && repeat,
       taskId,
+      appKey: chosenTask ? taskAppKey(chosenTask) : '',
     })
     setLabel('')
     setTaskId('')
@@ -246,6 +250,7 @@ function DisciplineScreen() {
                 ))}
               </select>
             </Field>
+            {chosenTask ? <AppHint task={chosenTask} apps={apps ?? []} /> : null}
             <Field label="Alarm message (optional)">
               <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
@@ -341,4 +346,12 @@ function SetupRow({
       )}
     </li>
   )
+}
+
+/** Tells you which app will be let through for the chosen task. */
+function AppHint({ task, apps }: { task: Task; apps: PhoneApp[] }) {
+  const appId = useTaskAppId(task)
+  const app = apps.find((a) => a.id === appId)
+  if (!app) return null
+  return <p className="-mt-2 text-sm text-muted">{app.name} stays open while this task is waiting.</p>
 }

@@ -45,7 +45,10 @@ public class BlockerService extends AccessibilityService {
         if (!DisciplineStore.isLocked(this)) return;
 
         Set<String> blocked = DisciplineStore.getBlocked(this);
-        if (blocked.contains(pkg)) openMyos(this);
+        if (!blocked.contains(pkg)) return;
+        // The app this task needs stays open.
+        if (pkg.equals(DisciplineStore.getActiveTaskApp(this))) return;
+        openMyos(this);
     }
 
     /** Brings MYOS to the front. Works from the background because this is an accessibility service. */

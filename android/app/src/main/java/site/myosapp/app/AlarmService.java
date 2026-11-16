@@ -70,6 +70,8 @@ public class AlarmService extends Service {
             DisciplineStore.setActiveAlarm(this, alarmId);
             String t = intent.getStringExtra("taskId");
             DisciplineStore.setActiveTask(this, t == null ? "" : t);
+            String k = intent.getStringExtra("appKey");
+            DisciplineStore.setActiveAppKey(this, k == null ? "" : k);
         } else {
             // The phone restarted this service by itself. Carry on only if a task is still waiting.
             alarmId = DisciplineStore.getActiveAlarm(this);

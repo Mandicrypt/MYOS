@@ -25,6 +25,8 @@ public final class DisciplineStore {
     private static final String KEY_LOCKED = "locked";
     private static final String KEY_ACTIVE = "active_alarm";
     private static final String KEY_ACTIVE_TASK = "active_task";
+    private static final String KEY_ACTIVE_APPKEY = "active_app_key";
+    private static final String KEY_TASK_APPS = "task_apps";
     private static final String KEY_ALARMS = "alarms";
 
     public static final String TEST_ID = "__test__";
@@ -69,6 +71,41 @@ public final class DisciplineStore {
 
     public static void setActiveTask(Context ctx, String taskId) {
         prefs(ctx).edit().putString(KEY_ACTIVE_TASK, taskId == null ? "" : taskId).apply();
+    }
+
+    public static String getActiveAppKey(Context ctx) {
+        return prefs(ctx).getString(KEY_ACTIVE_APPKEY, "");
+    }
+
+    public static void setActiveAppKey(Context ctx, String key) {
+        prefs(ctx).edit().putString(KEY_ACTIVE_APPKEY, key == null ? "" : key).apply();
+    }
+
+    // ---- Which app a task uses (saved on this phone only) ----
+
+    public static JSONObject getTaskApps(Context ctx) {
+        try {
+            return new JSONObject(prefs(ctx).getString(KEY_TASK_APPS, "{}"));
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
+    }
+
+    public static void setTaskApp(Context ctx, String key, String appId) {
+        JSONObject all = getTaskApps(ctx);
+        try {
+            if (appId == null || appId.isEmpty()) all.remove(key);
+            else all.put(key, appId);
+        } catch (JSONException ignored) {
+        }
+        prefs(ctx).edit().putString(KEY_TASK_APPS, all.toString()).apply();
+    }
+
+    /** The app the waiting task uses, or empty when it has none. */
+    public static String getActiveTaskApp(Context ctx) {
+        String key = getActiveAppKey(ctx);
+        if (key.isEmpty()) return "";
+        return getTaskApps(ctx).optString(key, "");
     }
 
     // ---- Alarms ----
