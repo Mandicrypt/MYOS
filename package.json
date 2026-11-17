@@ -14,7 +14,8 @@
     "check:sync": "tsx --tsconfig tsconfig.app.json scripts/check-sync.ts",
     "check:rewards": "tsx --tsconfig tsconfig.app.json scripts/check-rewards.ts",
     "check:token": "tsx --tsconfig tsconfig.app.json scripts/check-token.ts",
-    "check:recurrence": "tsx --tsconfig tsconfig.app.json scripts/check-recurrence.ts"
+    "check:recurrence": "tsx --tsconfig tsconfig.app.json scripts/check-recurrence.ts",
+    "check:delete": "tsx --tsconfig tsconfig.app.json scripts/check-delete.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",

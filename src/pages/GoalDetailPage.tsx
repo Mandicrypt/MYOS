@@ -1,6 +1,6 @@
 import { Ellipsis } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/layout/BackLink'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Section } from '@/components/layout/Section'
@@ -11,6 +11,7 @@ import { useUi } from '@/app/ui-context'
 import { LinkedNotes } from '@/components/notes/LinkedNotes'
 import { AddTaskInline } from '@/components/tasks/AddTaskInline'
 import { TaskList } from '@/components/tasks/TaskList'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { inputClass } from '@/components/ui/Field'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { ProgressLine } from '@/components/ui/ProgressLine'
@@ -28,6 +29,8 @@ export function GoalDetailPage() {
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [showDone, setShowDone] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const navigate = useNavigate()
   const goal = state.goals.find((g) => g.id === goalId)
 
   if (!goal) {
@@ -97,9 +100,26 @@ export function GoalDetailPage() {
             {goal.status !== 'archived' ? (
               <MenuItem onSelect={() => setStatus('archived', 'Goal archived')}>Archive goal</MenuItem>
             ) : null}
+            <MenuSeparator />
+            <MenuItem danger onSelect={() => setConfirmDelete(true)}>
+              Delete goal
+            </MenuItem>
           </MenuContent>
         </Menu>
       </header>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this goal?"
+        description="The goal is removed for good. Its projects, tasks and notes are kept and just stop pointing at it."
+        confirmLabel="Delete goal"
+        onConfirm={() => {
+          dispatch({ type: 'goal/delete', id: goal.id })
+          toast.show('Goal deleted', { label: 'Undo', run: undo })
+          navigate('/goals')
+        }}
+      />
 
       <section aria-label={ongoing ? 'Consistency' : 'Progress'} className="mb-12">
         {ongoing ? (
