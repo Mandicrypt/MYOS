@@ -11,7 +11,8 @@ export function MenuContent({ children, align = 'end' }: { children: ReactNode; 
       <Dropdown.Content
         align={align}
         sideOffset={6}
-        className="fade z-50 min-w-48 rounded-xl border border-line bg-surface p-1 shadow-[0_8px_24px_-10px_rgba(23,26,31,0.2)]"
+        collisionPadding={12}
+        className="fade z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-48 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface p-1 shadow-[0_8px_24px_-10px_rgba(23,26,31,0.2)]"
       >
         {children}
       </Dropdown.Content>

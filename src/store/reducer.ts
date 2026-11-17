@@ -72,6 +72,7 @@ export type Action =
   | { type: 'note/delete'; id: ID }
   | { type: 'project/add'; id?: ID; title: string; summary?: string }
   | { type: 'project/update'; id: ID; patch: Partial<Omit<Project, 'id'>> }
+  | { type: 'project/delete'; id: ID }
   | {
       type: 'goal/add'
       id?: ID
@@ -89,6 +90,7 @@ export type Action =
       patch: Partial<Pick<Goal, 'title' | 'why' | 'importance' | 'targetDate' | 'kind' | 'cadence' | 'endsOn'>>
     }
   | { type: 'goal/status'; id: ID; status: GoalStatus }
+  | { type: 'goal/delete'; id: ID }
   /** Daily Plan: accept (plans it for today) or turn down a suggestion. */
   | ({ type: 'plan/decide'; id: ID; accepted: boolean; today: ISODate } & Meta)
   /** A timed Focus session ended. Recorded for history and activity. */
@@ -467,6 +469,35 @@ export function reducer(state: AppState, action: Action): AppState {
       }
     case 'project/update':
       return { ...state, projects: state.projects.map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)) }
+    case 'project/delete': {
+      if (!state.projects.some((p) => p.id === action.id)) return state
+      // The project's milestones go with it. Everything else you wrote stays and just loses the link.
+      const milestoneIds = new Set(state.milestones.filter((m) => m.projectId === action.id).map((m) => m.id))
+      return {
+        ...state,
+        projects: state.projects.filter((p) => p.id !== action.id),
+        milestones: state.milestones.filter((m) => m.projectId !== action.id),
+        tasks: state.tasks.map((t) =>
+          t.projectId === action.id || (t.milestoneId && milestoneIds.has(t.milestoneId))
+            ? { ...t, projectId: t.projectId === action.id ? null : t.projectId, milestoneId: null }
+            : t,
+        ),
+        series: state.series.map((s) => (s.projectId === action.id ? { ...s, projectId: null } : s)),
+        notes: state.notes.map((n) => (n.projectId === action.id ? { ...n, projectId: null } : n)),
+      }
+    }
+    case 'goal/delete': {
+      if (!state.goals.some((g) => g.id === action.id)) return state
+      // Projects, tasks, notes and repeating tasks stay. They just stop pointing at the goal.
+      return {
+        ...state,
+        goals: state.goals.filter((g) => g.id !== action.id),
+        projects: state.projects.map((p) => (p.goalId === action.id ? { ...p, goalId: null } : p)),
+        tasks: state.tasks.map((t) => (t.goalId === action.id ? { ...t, goalId: null } : t)),
+        series: state.series.map((s) => (s.goalId === action.id ? { ...s, goalId: null } : s)),
+        notes: state.notes.map((n) => (n.goalId === action.id ? { ...n, goalId: null } : n)),
+      }
+    }
     case 'goal/add':
       return {
         ...state,

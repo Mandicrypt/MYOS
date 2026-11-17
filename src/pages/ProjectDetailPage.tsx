@@ -1,12 +1,14 @@
 import { Check, Ellipsis } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/layout/BackLink'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Section } from '@/components/layout/Section'
 import { LinkedNotes } from '@/components/notes/LinkedNotes'
 import { AddTaskInline } from '@/components/tasks/AddTaskInline'
 import { TaskList } from '@/components/tasks/TaskList'
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/Menu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { useToast } from '@/components/ui/Toast'
 import { friendlyDay } from '@/lib/dates'
 import { cn } from '@/lib/cn'
@@ -17,6 +19,8 @@ export function ProjectDetailPage() {
   const { projectId } = useParams()
   const { state, today, dispatch, undo } = useStore()
   const toast = useToast()
+  const navigate = useNavigate()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const project = state.projects.find((p) => p.id === projectId)
 
   if (!project) {
@@ -90,9 +94,26 @@ export function ProjectDetailPage() {
             {project.status !== 'done' ? (
               <MenuItem onSelect={() => setStatus('done', 'Project finished')}>Mark as finished</MenuItem>
             ) : null}
+            <MenuSeparator />
+            <MenuItem danger onSelect={() => setConfirmDelete(true)}>
+              Delete project
+            </MenuItem>
           </MenuContent>
         </Menu>
       </header>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this project?"
+        description="The project and its milestones are removed for good. Its tasks and notes are kept and just stop pointing at it."
+        confirmLabel="Delete project"
+        onConfirm={() => {
+          dispatch({ type: 'project/delete', id: project.id })
+          toast.show('Project deleted', { label: 'Undo', run: undo })
+          navigate('/projects')
+        }}
+      />
 
       <div className="space-y-12">
         <Section title="Tasks">
